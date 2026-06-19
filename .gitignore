@@ -1,0 +1,45 @@
+# ======================
+# ENV FILES (VERY IMPORTANT)
+# ======================
+.env
+.env.*
+backend/.env
+frontend/.env
+
+# ======================
+# NODE (React)
+# ======================
+node_modules/
+frontend/node_modules/
+
+# builds
+frontend/dist/
+frontend/build/
+
+# ======================
+# PYTHON (Django)
+# ======================
+__pycache__/
+*.py[cod]
+venv/
+myenv/
+backend/__pycache__/
+
+db.sqlite3
+
+# ======================
+# IDE
+# ======================
+.vscode/
+.idea/
+
+# ======================
+# OS
+# ======================
+.DS_Store
+Thumbs.db
+
+# ======================
+# LOGS
+# ======================
+*.log

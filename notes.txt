@@ -1,0 +1,104 @@
+##Virtual Environment
+python -m venv myenv
+myenv\Scripts\activate
+deactivate
+rmdir /s venv
+
+-remove:-Remove-Item -Recurse -Force myenv
+
+pip freeze > requirements.txt
+pip install -r requirements.txt
+
+*************************************************************
+MVT (Model View Tempelate)
+Model:- Logic for the Database
+View:- logical part 
+Tempelate:- UI development
+
+************************************************************************************************************************
+## Install Django                                                       
+pip install django
+
+django-admin --version
+
+*************************************************************
+## Create the first Project 
+
+django-admin startproject project_name         
+
+
+this creates:
+your_folder /
+│
+└── project_name/
+    │
+    ├── manage.py
+    │
+    └── mysite/
+        ├── __init__.py
+        ├── settings.py
+        ├── urls.py
+        ├── asgi.py
+        └── wsgi.py
+
+1) manage.py: Think of this as Django's command center.
+
+                python manage.py runserver
+                python manage.py migrate
+                python manage.py createsuperuser
+   Without it, you'd have to write very long commands.
+
+2) init.py : Usually empty.
+        Tells Python:
+        "This folder is a Python package."
+
+3) Settings.py: 
+
+Most important file.Contains: 
+Database
+Installed apps
+Security settings
+Templates
+Static files
+Authentication
+
+4)Urls: urls.py
+
+Contains URL routing.
+
+
+5)wsgi.py:
+
+Used when deploying Django with servers like:
+    Gunicorn
+    Apache
+
+
+6)asgi.py:
+
+Used for:
+
+    WebSockets
+    Real-time chat
+    Notifications
+    Async applications
+
+Important for modern Django apps.
+
+*************************************************************
+running the server:
+
+here manage.py is the wrapper around the django-admin
+--> python manage.py / python manage.py runserver/python manage.py runserver8001
+
+
+*************************************************************
+
+Creating an app in djago
+
+    python manage.py startapp app_name
+
+        register it in settings.py ---> Installed app - app_name.
+        create your view 
+        Connect URL to View
+
