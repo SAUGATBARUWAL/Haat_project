@@ -102,3 +102,11 @@ Creating an app in djago
         create your view 
         Connect URL to View
 
+
+*************************************************************
+django secret key generation
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+
+
+django signals(signals.py):-decoraotrs.py
