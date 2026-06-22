@@ -19,4 +19,21 @@ urlpatterns = [
     # Customer-specific updates
     path('customer/delivery-details/', views.CustomerDeliveryDetailsView.as_view(), name='customer-delivery-details'),
     path('customer/profile-picture/', views.CustomerProfilePictureView.as_view(), name='customer-profile-picture'),
+
+    #ban-unban users
+    
+    path('admin/users/<int:user_id>/ban/', views.BanUserView.as_view(), name='ban-user'),
+    path('admin/users/<int:user_id>/unban/', views.UnbanUserView.as_view(), name='unban-user'),
+
+    #logout
+    path('token/refresh/', views.CustomTokenRefreshView.as_view(), name='token_refresh'),
+    path('logout/', views.LogoutView.as_view(), name='logout'),
+
+    #Change Password
+  
+    path('change-password/', views.ChangePasswordView.as_view(), name='change-password'),
+
+    #Reset password
+    path('password-reset/', views.PasswordResetRequestView.as_view(), name='password-reset-request'),
+    path('password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
 ]

@@ -1,13 +1,11 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
-# 👤 1. Only authenticated users
 class IsAuthenticatedUser(BasePermission):
     def has_permission(self, request, view):
         return request.user and request.user.is_authenticated
 
 
-# 🧑‍💼 2. Only Customers
 class IsCustomer(BasePermission):
     def has_permission(self, request, view):
         return (
@@ -16,7 +14,6 @@ class IsCustomer(BasePermission):
         )
 
 
-# 🛍️ 3. Only Sellers
 class IsSeller(BasePermission):
     def has_permission(self, request, view):
         return (
@@ -25,7 +22,6 @@ class IsSeller(BasePermission):
         )
 
 
-# 👑 4. Only Admins (superuser OR role-based admin)
 class IsAdmin(BasePermission):
     def has_permission(self, request, view):
         return (
@@ -37,7 +33,6 @@ class IsAdmin(BasePermission):
         )
 
 
-# ✅ 5. Only ACTIVE users (optional safety layer)
 class IsActiveUser(BasePermission):
     def has_permission(self, request, view):
         return (
@@ -46,7 +41,6 @@ class IsActiveUser(BasePermission):
         )
 
 
-# 🔐 6. Verified Seller ONLY (VERY important for marketplace)
 class IsVerifiedSeller(BasePermission):
     def has_permission(self, request, view):
         return (
@@ -57,23 +51,20 @@ class IsVerifiedSeller(BasePermission):
         )
 
 
-# 🧍 7. User can access only their own data (profile, settings, etc.)
 class IsOwner(BasePermission):
-    """
-    Works for objects that have a `user` field.
-    Example: CustomerProfile, SellerProfile
-    """
-
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user
 
 
-# ✏️ 8. Owner OR ReadOnly (very useful for profiles/products later)
 class IsOwnerOrReadOnly(BasePermission):
     def has_object_permission(self, request, view, obj):
-        # Allow safe methods (GET, HEAD, OPTIONS)
         if request.method in SAFE_METHODS:
             return True
+        return obj.user == request.user
 
-        # Write actions only for owner
+
+class IsOwnerOrAdmin(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if request.user.role == "admin" or request.user.is_superuser:
+            return True
         return obj.user == request.user

@@ -5,6 +5,9 @@ from django.db import transaction
 from .models import User, CustomerProfile, SellerProfile
 from core.imagekit import upload_image
 
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 
 class CustomerRegisterSerializer(serializers.ModelSerializer):
     """
@@ -278,3 +281,56 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerProfile
         fields = ['phone', 'address', 'profile_picture']
+
+# serializers.py
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(write_only=True, required=True)
+    new_password = serializers.CharField(write_only=True, required=True, min_length=8)
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect.")
+        return value
+
+    def save(self, **kwargs):
+        user = self.context['request'].user
+        user.set_password(self.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        return user
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        if not User.objects.filter(email=value).exists():
+            # NOTE: deliberately don't reveal whether email exists, to avoid
+            # leaking which emails are registered. Just silently "succeed" either way.
+            pass
+        return value
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(min_length=8)
+
+    def validate(self, attrs):
+        try:
+            uid = urlsafe_base64_decode(attrs['uid']).decode()
+            user = User.objects.get(pk=uid)
+        except (User.DoesNotExist, ValueError, TypeError):
+            raise serializers.ValidationError("Invalid reset link.")
+
+        token_generator = PasswordResetTokenGenerator()
+        if not token_generator.check_token(user, attrs['token']):
+            raise serializers.ValidationError("Reset link is invalid or has expired.")
+
+        attrs['user'] = user
+        return attrs
+
+    def save(self, **kwargs):
+        user = self.validated_data['user']
+        user.set_password(self.validated_data['new_password'])
+        user.save(update_fields=['password'])
+        return user

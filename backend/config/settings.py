@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     #Additionals frameworks
     "corsheaders",#for cross origin communication
     'rest_framework',
+    'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist', 
 
     #Created Apps
     'users',
@@ -63,10 +65,16 @@ AUTH_USER_MODEL = 'users.User'
 #Configuring rest framework for authentication
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.BasicAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+        'users.authentication.CookieJWTAuthentication',
     ]
 }
+AUTH_COOKIE_ACCESS = 'access_token'
+AUTH_COOKIE_REFRESH = 'refresh_token' 
+CSRF_COOKIE_HTTPONLY = False
+AUTH_COOKIE_SECURE = not DEBUG   # set False only for local http dev
+AUTH_COOKIE_SAMESITE = 'Lax'
+# settings.py — for local development
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -79,8 +87,13 @@ MIDDLEWARE = [
 
     #installed middlewares
     "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.security.SecurityMiddleware",
+    
 ]
+#Cors to check which ip can access backend
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",   # your frontend's dev URL — adjust to match
+]
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'config.urls'
 
