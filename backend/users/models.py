@@ -14,6 +14,11 @@ class User(AbstractUser):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def save(self, *args, **kwargs):
+        if self.is_superuser:
+            self.role = "admin"
+        super().save(*args, **kwargs)
+
 
 class SellerProfile(models.Model):
         

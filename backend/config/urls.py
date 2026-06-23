@@ -22,4 +22,6 @@ urlpatterns = [
 
     # Users App
     path('', include('users.urls')),
+    #products App
+    path('api/products/', include('products.urls')),
 ]
