@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     #Created Apps
     'users',
     'core',
+    'products'
 ]
 # this model tells django to use the custom model instead of default one from the abstractUser
 AUTH_USER_MODEL = 'users.User' 
