@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import AuthLayout from "../../layouts/AuthLayout";
+import GreenButton from "../../components/GreenButton";
+
 export default function Login() {
   const navigate = useNavigate();
 
@@ -13,10 +16,10 @@ export default function Login() {
   const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
+    setForm((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
   const handleLogin = async (e) => {
@@ -36,15 +39,15 @@ export default function Login() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.detail || "Login failed");
+        throw new Error(data.detail || "Login failed");
       }
 
-      // store JWT token
+      // Save JWT tokens
       localStorage.setItem("access", data.access);
       localStorage.setItem("refresh", data.refresh);
       localStorage.setItem("role", data.role);
 
-      // role-based redirect
+      // Navigate based on role
       if (data.role === "seller") {
         navigate("/seller/dashboard");
       } else {
@@ -58,80 +61,79 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        
-        {/* Title */}
-        <h2 className="text-2xl font-bold text-center text-gray-800">
-          Login to Your Account
-        </h2>
-        <p className="text-sm text-gray-500 text-center mt-1">
-          Welcome back 👋
+    <AuthLayout>
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-gray-600/50 p-8">
+        {/* Heading */}
+        <h1 className="text-3xl font-bold text-center text-green-600">
+          HAAT   
+        </h1>
+
+        <p className="text-center text-gray-500 mt-2">
+          Enter your login credentials
         </p>
 
         {/* Error */}
         {error && (
-          <div className="bg-red-100 text-red-600 p-2 mt-4 rounded text-sm text-center">
+          <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-red-600">
             {error}
           </div>
         )}
 
         {/* Form */}
         <form onSubmit={handleLogin} className="mt-6 space-y-4">
-
-          {/* Username */}
           <div>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               Username
             </label>
+
             <input
               type="text"
               name="username"
               value={form.username}
               onChange={handleChange}
               placeholder="Enter username"
-              className="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
+              className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               Password
             </label>
+
             <input
               type="password"
               name="password"
               value={form.password}
               onChange={handleChange}
               placeholder="Enter password"
-              className="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
+              className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             />
           </div>
 
-          {/* Button */}
-          <button
+          <GreenButton
             type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            loading={loading}
+            loadingText="Logging in..."
           >
-            {loading ? "Logging in..." : "Login"}
-          </button>
+            Login
+          </GreenButton>
         </form>
 
-        {/* Signup link */}
-        <p className="text-center text-sm mt-5 text-gray-600">
-          Don’t have an account?{" "}
-          <span
+        {/* Sign up */}
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Not registered?{" "}
+          <button
+            type="button"
             onClick={() => navigate("/signup")}
-            className="text-blue-600 cursor-pointer font-medium hover:underline"
+            className="font-medium text-blue-600 hover:underline"
           >
-            Sign up
-          </span>
+            Create an account
+          </button>
         </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
