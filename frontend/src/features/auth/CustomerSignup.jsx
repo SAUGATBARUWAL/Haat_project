@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import GreenButton from "../../components/buttons/GreenButton";
+import AuthLayout from "../../layouts/AuthLayout";
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 function CustomerSignup() {
   const navigate = useNavigate();
@@ -8,27 +12,31 @@ function CustomerSignup() {
     username: "",
     email: "",
     password: "",
-    phone: "",
-    address: "",
-    profile_picture: null,
   });
 
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
 
-    if (files) {
-      setFormData({
-        ...formData,
-        [name]: files[0],
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value,
-      });
+  const extractErrorMessage = (result) => {
+    if (!result) return "Registration failed. Please try again.";
+    if (typeof result === "string") return result;
+    if (result.detail) return result.detail;
+    if (result.message) return result.message;
+
+    const firstKey = Object.keys(result)[0];
+    if (firstKey) {
+      const value = result[firstKey];
+      const text = Array.isArray(value) ? value[0] : value;
+      return `${firstKey}: ${text}`;
     }
+
+    return "Registration failed. Please try again.";
   };
 
   const handleSubmit = async (e) => {
@@ -37,49 +45,39 @@ function CustomerSignup() {
     setLoading(true);
 
     try {
-      const data = new FormData();
-
-      Object.keys(formData).forEach((key) => {
-        if (formData[key] !== null) {
-          data.append(key, formData[key]);
-        }
+      const response = await fetch(`${API_BASE_URL}/register/customer/`, {
+        method: "POST",
+        credentials: "include", // required to store the auto-login cookies
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
       });
 
-      const response = await fetch(
-        "http://localhost:8000/api/register/customer/",
-        {
-          method: "POST",
-          body: data,
-        }
-      );
-
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(
-          JSON.stringify(result) || "Registration failed"
-        );
+        throw new Error(extractErrorMessage(result));
       }
 
       alert("Customer registered successfully!");
       navigate("/");
     } catch (error) {
       console.error(error);
-      alert("Registration failed");
+      alert(error.message || "Registration failed");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+    <AuthLayout>
       <div className="w-full max-w-lg bg-white shadow-lg rounded-xl p-8">
-        <h2 className="text-3xl font-bold text-center mb-6">
+        <h2 className="text-3xl font-bold text-center text-green-600 mb-6">
           Customer Registration
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-
           <input
             type="text"
             name="username"
@@ -87,7 +85,7 @@ function CustomerSignup() {
             required
             value={formData.username}
             onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
+            className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
           />
 
           <input
@@ -97,7 +95,7 @@ function CustomerSignup() {
             required
             value={formData.email}
             onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
+            className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
           />
 
           <input
@@ -107,61 +105,30 @@ function CustomerSignup() {
             required
             value={formData.password}
             onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
+            className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
           />
 
-          <input
-            type="text"
-            name="phone"
-            placeholder="Phone Number"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
-
-          <textarea
-            name="address"
-            placeholder="Address"
-            rows="3"
-            value={formData.address}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
-
-          <div>
-            <label className="block mb-2 font-medium">
-              Profile Picture
-            </label>
-
-            <input
-              type="file"
-              name="profile_picture"
-              accept="image/*"
-              onChange={handleChange}
-              className="w-full border rounded-lg px-4 py-2"
-            />
-          </div>
-
-          <button
+          <GreenButton
             type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition"
+            loading={loading}
+            loadingText="Registering..."
           >
-            {loading ? "Registering..." : "Register"}
-          </button>
+            Register
+          </GreenButton>
         </form>
 
-        <p className="text-center mt-6">
+        <p className="text-center mt-6 text-gray-600">
           Already have an account?{" "}
           <button
+            type="button"
             onClick={() => navigate("/")}
-            className="text-blue-600 hover:underline"
+            className="text-green-600 hover:underline "
           >
             Login
           </button>
         </p>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
 

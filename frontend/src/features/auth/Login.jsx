@@ -1,5 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import GreenButton from "../../components/buttons/GreenButton";
+import AuthLayout from "../../layouts/AuthLayout";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -13,42 +18,55 @@ export default function Login() {
   const [error, setError] = useState("");
 
   const handleChange = (e) => {
-    setForm({
-      ...form,
+    setForm((prev) => ({
+      ...prev,
       [e.target.name]: e.target.value,
-    });
+    }));
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
     setLoading(true);
     setError("");
 
     try {
-      const res = await fetch("http://localhost:8000/api/login/", {
+      const response = await fetch(`${API_BASE_URL}/login/`, {
         method: "POST",
+
+        // Required for HTTP-only JWT cookies
+        credentials: "include",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify(form),
       });
 
-      const data = await res.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(data?.detail || "Login failed");
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            data.message ||
+            "Invalid username or password."
+        );
       }
 
-      // store JWT token
-      localStorage.setItem("access", data.access);
-      localStorage.setItem("refresh", data.refresh);
-      localStorage.setItem("role", data.role);
+      /*
+       * DO NOT store tokens in localStorage.
+       * The backend already stores them as HTTP-only cookies.
+       */
 
-      // role-based redirect
+      // Redirect according to role if returned by backend
       if (data.role === "seller") {
         navigate("/seller/dashboard");
+      } else if (data.role === "customer") {
+        navigate("/");
       } else {
-        navigate("/home");
+        // Fallback
+        navigate("/");
       }
     } catch (err) {
       setError(err.message);
@@ -58,80 +76,78 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        
-        {/* Title */}
-        <h2 className="text-2xl font-bold text-center text-gray-800">
-          Login to Your Account
+    <AuthLayout>
+      <div className="w-full max-w-md rounded-2xl bg-white/80 backdrop-blur-md shadow-2xl shadow-gray-700/40 p-8">
+
+        <h2 className="text-3xl font-bold text-center text-green-700">
+          HAAT
         </h2>
-        <p className="text-sm text-gray-500 text-center mt-1">
-          Welcome back 👋
+
+        <p className="text-center text-gray-600 mt-2">
+          Enter your login credentials
         </p>
 
-        {/* Error */}
         {error && (
-          <div className="bg-red-100 text-red-600 p-2 mt-4 rounded text-sm text-center">
+          <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-red-600">
             {error}
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="mt-6 space-y-4">
 
-          {/* Username */}
           <div>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium mb-1">
               Username
             </label>
+
             <input
               type="text"
               name="username"
               value={form.username}
               onChange={handleChange}
               placeholder="Enter username"
-              className="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
               required
+              className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label className="text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium mb-1">
               Password
             </label>
+
             <input
               type="password"
               name="password"
               value={form.password}
               onChange={handleChange}
               placeholder="Enter password"
-              className="w-full mt-1 p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 outline-none"
               required
+              className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
             />
           </div>
 
-          {/* Button */}
-          <button
+          <GreenButton
             type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+            loading={loading}
           >
-            {loading ? "Logging in..." : "Login"}
-          </button>
+            Login
+          </GreenButton>
+
         </form>
 
-        {/* Signup link */}
-        <p className="text-center text-sm mt-5 text-gray-600">
-          Don’t have an account?{" "}
-          <span
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Not registered?{" "}
+          <button
+            type="button"
             onClick={() => navigate("/signup")}
-            className="text-blue-600 cursor-pointer font-medium hover:underline"
+            className="font-medium text-blue-600 hover:underline"
           >
-            Sign up
-          </span>
+            Create an account
+          </button>
         </p>
+
       </div>
-    </div>
+    </AuthLayout>
   );
 }

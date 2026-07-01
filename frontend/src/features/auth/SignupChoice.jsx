@@ -6,14 +6,15 @@ export default function SignupChoice() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 text-center">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-gray-600/50 p-8 text-center">
 
         {/* Title */}
-        <h2 className="text-2xl font-bold text-gray-800">
+        <h2 className="text-2xl font-bold text-gray-700">
           Create an Account
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Choose how you want to register
+
+        <p className="text-sm text-gray-500 mt-2">
+          Choose how you'd like to join
         </p>
 
         {/* Buttons */}
@@ -30,21 +31,21 @@ export default function SignupChoice() {
           {/* Seller */}
           <button
             onClick={() => navigate("/signup/seller")}
-            className="w-full bg-purple-500 text-white py-3 rounded-lg hover:bg-purple-600 transition font-medium"
+            className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition font-medium"
           >
             Register as Seller
           </button>
 
         </div>
 
-        {/* Back to login */}
+        {/* Login */}
         <p className="text-sm mt-6 text-gray-600">
           Already have an account?{" "}
           <span
             onClick={() => navigate("/")}
-            className="text-blue-600 cursor-pointer font-medium hover:underline"
+            className="text-green-600 cursor-pointer font-medium hover:underline"
           >
-            Login
+            Log in
           </span>
         </p>
 
