@@ -1,5 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import GreenButton from "../../components/GreenButton";
 
 export default function SignupChoice() {
   const navigate = useNavigate();
@@ -13,7 +12,10 @@ export default function SignupChoice() {
         <h2 className="text-2xl font-bold text-gray-700">
           Create an Account
         </h2>
-        
+
+        <p className="text-sm text-gray-500 mt-2">
+          Choose how you'd like to join
+        </p>
 
         {/* Buttons */}
         <div className="mt-8 space-y-4">
@@ -26,16 +28,24 @@ export default function SignupChoice() {
             Register as Customer
           </button>
 
+          {/* Seller */}
+          <button
+            onClick={() => navigate("/signup/seller")}
+            className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition font-medium"
+          >
+            Register as Seller
+          </button>
+
         </div>
 
-        {/* Seller */}
+        {/* Login */}
         <p className="text-sm mt-6 text-gray-600">
           Already have an account?{" "}
           <span
-            onClick={() => navigate("/signup/seller")}
-            className="text-blue-600 cursor-pointer font-medium hover:underline"
+            onClick={() => navigate("/")}
+            className="text-green-600 cursor-pointer font-medium hover:underline"
           >
-           Register as seller 
+            Log in
           </span>
         </p>
 

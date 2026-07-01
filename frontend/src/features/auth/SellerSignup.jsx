@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import GreenButton from "../../components/GreenButton";
+import GreenButton from "../../components/buttons/GreenButton";
 import { ImageUp } from "lucide-react";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
@@ -53,12 +53,19 @@ function SellerSignup() {
   const validate = () => {
     const newErrors = {};
 
-    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(formData.pan_number.trim())) {
-      newErrors.pan_number = "Enter a valid PAN number (e.g. ABCDE1234F)";
+    // Backend requires exactly 9 digits (Nepal PAN format) — NOT the
+    // Indian-style 5-letter/4-digit/1-letter format.
+    if (!/^\d{9}$/.test(formData.pan_number.trim())) {
+      newErrors.pan_number = "PAN number must be exactly 9 digits.";
     }
 
-    if (formData.phone && formData.phone.length < 7) {
+    // Backend requires phone (required=True, allow_blank=False)
+    if (!formData.phone || formData.phone.length < 7) {
       newErrors.phone = "Phone number must be at least 7 digits";
+    }
+
+    if (!formData.business_document) {
+      newErrors.business_document = "Business document is required.";
     }
 
     setErrors((prev) => ({ ...prev, ...newErrors }));
@@ -97,8 +104,12 @@ function SellerSignup() {
         }
       });
 
-      const response = await fetch(`${API_BASE_URL}/api/register/seller/`, {
+      // NOTE: matches your actual urls.py route — no /api/ prefix.
+      // If you later wrap users.urls under /api/ in config/urls.py,
+      // update this (and every other fetch call across the app) to match.
+      const response = await fetch(`${API_BASE_URL}/register/seller/`, {
         method: "POST",
+        credentials: "include", // required so the auto-login cookies set by the backend are stored
         body: data,
       });
 
@@ -163,6 +174,7 @@ function SellerSignup() {
               name="phone"
               placeholder="Phone Number"
               maxLength={15}
+              required
               value={formData.phone}
               onChange={handleChange}
               className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
@@ -185,12 +197,14 @@ function SellerSignup() {
           <div>
             <input
               type="text"
+              inputMode="numeric"
               name="pan_number"
-              placeholder="PAN Number"
+              placeholder="PAN Number (9 digits)"
+              maxLength={9}
               required
               value={formData.pan_number}
               onChange={handleChange}
-              className="w-full border rounded-lg px-4 py-3 uppercase focus:ring-2 focus:ring-green-500 outline-none"
+              className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
             />
             {errors.pan_number && (
               <p className="text-red-600 text-sm mt-1">{errors.pan_number}</p>
@@ -207,14 +221,14 @@ function SellerSignup() {
             className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
           />
 
-          {/* Profile Picture */}
+          {/* Profile Picture — optional, matches backend's required=False */}
           <div>
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-green-600 transition">
               <ImageUp className="w-10 h-10 text-green-600" />
               <span className="mt-2 text-sm text-gray-600">
                 {formData.profile_picture
                   ? formData.profile_picture.name
-                  : "Upload Profile Picture"}
+                  : "Upload Profile Picture (optional)"}
               </span>
               <input
                 type="file"
@@ -231,19 +245,20 @@ function SellerSignup() {
             )}
           </div>
 
-          {/* Business Document */}
+          {/* Business Document — required, matches backend's FileField(required=True) */}
           <div>
             <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:border-green-600 transition mt-4">
               <ImageUp className="w-10 h-10 text-green-600" />
               <span className="mt-2 text-sm text-gray-600">
                 {formData.business_document
                   ? formData.business_document.name
-                  : "Upload Business Document"}
+                  : "Upload Business Document (PDF or image)"}
               </span>
               <input
                 type="file"
                 name="business_document"
                 accept=".pdf,.jpg,.jpeg,.png"
+                required
                 onChange={handleChange}
                 className="hidden"
               />

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import GreenButton from "../../components/buttons/GreenButton";
 import AuthLayout from "../../layouts/AuthLayout";
-import GreenButton from "../../components/GreenButton";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -24,34 +26,47 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
     setLoading(true);
     setError("");
 
     try {
-      const res = await fetch("http://localhost:8000/api/login/", {
+      const response = await fetch(`${API_BASE_URL}/login/`, {
         method: "POST",
+
+        // Required for HTTP-only JWT cookies
+        credentials: "include",
+
         headers: {
           "Content-Type": "application/json",
         },
+
         body: JSON.stringify(form),
       });
 
-      const data = await res.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(data.detail || "Login failed");
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            data.message ||
+            "Invalid username or password."
+        );
       }
 
-      // Save JWT tokens
-      localStorage.setItem("access", data.access);
-      localStorage.setItem("refresh", data.refresh);
-      localStorage.setItem("role", data.role);
+      /*
+       * DO NOT store tokens in localStorage.
+       * The backend already stores them as HTTP-only cookies.
+       */
 
-      // Navigate based on role
+      // Redirect according to role if returned by backend
       if (data.role === "seller") {
         navigate("/seller/dashboard");
+      } else if (data.role === "customer") {
+        navigate("/");
       } else {
-        navigate("/home");
+        // Fallback
+        navigate("/");
       }
     } catch (err) {
       setError(err.message);
@@ -62,27 +77,26 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl shadow-gray-600/50 p-8">
-        {/* Heading */}
-        <h1 className="text-3xl font-bold text-center text-green-600">
-          HAAT   
-        </h1>
+      <div className="w-full max-w-md rounded-2xl bg-white/80 backdrop-blur-md shadow-2xl shadow-gray-700/40 p-8">
 
-        <p className="text-center text-gray-500 mt-2">
+        <h2 className="text-3xl font-bold text-center text-green-700">
+          HAAT
+        </h2>
+
+        <p className="text-center text-gray-600 mt-2">
           Enter your login credentials
         </p>
 
-        {/* Error */}
         {error && (
           <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-red-600">
             {error}
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="mt-6 space-y-4">
+
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium mb-1">
               Username
             </label>
 
@@ -92,13 +106,13 @@ export default function Login() {
               value={form.username}
               onChange={handleChange}
               placeholder="Enter username"
-              className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
+              className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="block text-sm font-medium mb-1">
               Password
             </label>
 
@@ -108,21 +122,20 @@ export default function Login() {
               value={form.password}
               onChange={handleChange}
               placeholder="Enter password"
-              className="w-full rounded-lg border p-3 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
+              className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
             />
           </div>
 
           <GreenButton
             type="submit"
             loading={loading}
-            loadingText="Logging in..."
           >
             Login
           </GreenButton>
+
         </form>
 
-        {/* Sign up */}
         <p className="mt-6 text-center text-sm text-gray-600">
           Not registered?{" "}
           <button
@@ -133,6 +146,7 @@ export default function Login() {
             Create an account
           </button>
         </p>
+
       </div>
     </AuthLayout>
   );
