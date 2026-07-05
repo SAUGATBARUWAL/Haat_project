@@ -2,134 +2,131 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GreenButton from "../../components/buttons/GreenButton";
 import AuthLayout from "../../layouts/AuthLayout";
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import api from "../../utils/api";
+import { useAuth } from "../../context/AuthContext";
 
 function CustomerSignup() {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+    const { fetchProfile } = useAuth();
 
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-  });
-
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
+    const [formData, setFormData] = useState({
+        username: "",
+        email: "",
+        password: "",
     });
-  };
 
-  const extractErrorMessage = (result) => {
-    if (!result) return "Registration failed. Please try again.";
-    if (typeof result === "string") return result;
-    if (result.detail) return result.detail;
-    if (result.message) return result.message;
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
-    const firstKey = Object.keys(result)[0];
-    if (firstKey) {
-      const value = result[firstKey];
-      const text = Array.isArray(value) ? value[0] : value;
-      return `${firstKey}: ${text}`;
-    }
+    const handleChange = (e) => {
+        setFormData({
+            ...formData,
+            [e.target.name]: e.target.value,
+        });
+    };
 
-    return "Registration failed. Please try again.";
-  };
+    const extractErrorMessage = (data) => {
+        if (!data) return "Registration failed. Please try again.";
+        if (typeof data === "string") return data;
+        if (data.detail) return data.detail;
+        if (data.message) return data.message;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+        const firstKey = Object.keys(data)[0];
+        if (firstKey) {
+            const value = data[firstKey];
+            const text = Array.isArray(value) ? value[0] : value;
+            return `${firstKey}: ${text}`;
+        }
 
-    setLoading(true);
+        return "Registration failed. Please try again.";
+    };
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/register/customer/`, {
-        method: "POST",
-        credentials: "include", // required to store the auto-login cookies
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError("");
 
-      const result = await response.json().catch(() => null);
+        try {
+            // Register customer
+            await api.post("/register/customer/", formData);
 
-      if (!response.ok) {
-        throw new Error(extractErrorMessage(result));
-      }
+            // Update authentication state
+            await fetchProfile();
 
-      alert("Customer registered successfully!");
-      navigate("/");
-    } catch (error) {
-      console.error(error);
-      alert(error.message || "Registration failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+            navigate("/");
+        } catch (err) {
+            setError(extractErrorMessage(err.response?.data));
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <AuthLayout>
-      <div className="w-full max-w-lg bg-white shadow-lg rounded-xl p-8">
-        <h2 className="text-3xl font-bold text-center text-green-600 mb-6">
-          Customer Registration
-        </h2>
+    return (
+        <AuthLayout>
+            <div className="w-full max-w-lg rounded-xl bg-white p-8 shadow-lg">
+                <h2 className="mb-6 text-center text-3xl font-bold text-green-600">
+                    Customer Registration
+                </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            required
-            value={formData.username}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
-          />
+                {error && (
+                    <div className="mb-4 rounded-lg bg-red-100 p-3 text-center text-red-600">
+                        {error}
+                    </div>
+                )}
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            required
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
-          />
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <input
+                        type="text"
+                        name="username"
+                        placeholder="Username"
+                        required
+                        value={formData.username}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                    />
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            required
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
-          />
+                    <input
+                        type="email"
+                        name="email"
+                        placeholder="Email"
+                        required
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                    />
 
-          <GreenButton
-            type="submit"
-            loading={loading}
-            loadingText="Registering..."
-          >
-            Register
-          </GreenButton>
-        </form>
+                    <input
+                        type="password"
+                        name="password"
+                        placeholder="Password"
+                        required
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                    />
 
-        <p className="text-center mt-6 text-gray-600">
-          Already have an account?{" "}
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            className="text-green-600 hover:underline "
-          >
-            Login
-          </button>
-        </p>
-      </div>
-    </AuthLayout>
-  );
+                    <GreenButton
+                        type="submit"
+                        loading={loading}
+                        loadingText="Registering..."
+                    >
+                        Register
+                    </GreenButton>
+                </form>
+
+                <p className="mt-6 text-center text-gray-600">
+                    Already have an account?{" "}
+                    <button
+                        type="button"
+                        onClick={() => navigate("/")}
+                        className="text-green-600 hover:underline"
+                    >
+                        Login
+                    </button>
+                </p>
+            </div>
+        </AuthLayout>
+    );
 }
 
 export default CustomerSignup;

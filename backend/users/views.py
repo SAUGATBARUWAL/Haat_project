@@ -28,15 +28,10 @@ from .serializers import (
     ChangePasswordSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
-    # NOTE: PasswordResetTokenGenerator removed from here — it's a Django
-    # utility, not something defined in serializers.py. It's already
-    # imported correctly above from django.contrib.auth.tokens.
 )
 
 
 # --- Helper to set both JWT cookies on any response ---
-# Centralized so we don't repeat the same set_cookie() calls in
-# every view that needs to issue tokens (register, login, refresh).
 def set_auth_cookies(response, user):
     refresh = RefreshToken.for_user(user)
     refresh['role'] = user.role
@@ -78,7 +73,6 @@ class CustomerRegisterView(CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-        # Auto-login right after registration by issuing JWT cookies
         set_auth_cookies(response, user)
 
         return response
@@ -103,8 +97,6 @@ class SellerRegisterView(CreateAPIView):
             status=status.HTTP_201_CREATED,
         )
 
-        # Sellers also get tokens immediately, even though their
-        # verification_status starts as 'pending'.
         set_auth_cookies(response, user)
 
         return response
@@ -113,7 +105,7 @@ class SellerRegisterView(CreateAPIView):
 class CustomerDeliveryDetailsView(RetrieveUpdateAPIView):
     serializer_class = CustomerDeliveryDetailsSerializer
     permission_classes = [IsAuthenticated]
-    http_method_names = ['get', 'put', 'patch']  # PUT is fine here since both fields are required anyway
+    http_method_names = ['get', 'put', 'patch']
 
     def get_object(self):
         return self.request.user.customer_profile
@@ -122,7 +114,7 @@ class CustomerDeliveryDetailsView(RetrieveUpdateAPIView):
 class CustomerProfilePictureView(RetrieveUpdateAPIView):
     serializer_class = CustomerProfilePictureSerializer
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]  # needed for file upload
+    parser_classes = [MultiPartParser, FormParser]
     http_method_names = ['get', 'put', 'patch']
 
     def get_object(self):
@@ -132,8 +124,6 @@ class CustomerProfilePictureView(RetrieveUpdateAPIView):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
-    # Override post() so login also sets cookies instead of returning
-    # tokens in the JSON body.
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
 
@@ -162,21 +152,82 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 # Custom refresh view — reads the refresh token from the cookie
 # (not from the request body) and re-sets a fresh access token cookie.
-# THIS is the class your urls.py was missing.
+#
+# FIXED: previously did `request.data['refresh'] = refresh_token` and
+# called super().post(), but request.data is often an immutable QueryDict
+# for an empty-body POST, so the mutation silently failed and the
+# underlying serializer validation saw no `refresh` field -> 400.
+# Now we build the serializer directly with a plain dict we control.
 class CustomTokenRefreshView(TokenRefreshView):
-    def post(self, request, *args, **kwargs):
+    '''def post(self, request, *args, **kwargs):
         refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
         if not refresh_token:
             raise AuthenticationFailed("Refresh token not found in cookies.")
 
-        request.data['refresh'] = refresh_token
-        response = super().post(request, *args, **kwargs)
+        serializer = self.get_serializer(data={"refresh": refresh_token})
+        serializer.is_valid(raise_exception=True)
 
-        access = response.data.pop('access', None)
-        if access:
+        access = serializer.validated_data.get("access")
+
+        response = Response({"message": "Token refreshed."}, status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            key=settings.AUTH_COOKIE_ACCESS,
+            value=access,
+            httponly=True,
+            secure=settings.AUTH_COOKIE_SECURE,
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+        )
+
+        # If ROTATE_REFRESH_TOKENS is enabled, a new refresh token is
+        # returned too — re-set that cookie, or the old (now possibly
+        # blacklisted) one stays in the browser and the *next* refresh fails.
+        new_refresh = serializer.validated_data.get("refresh")
+        if new_refresh:
             response.set_cookie(
-                key=settings.AUTH_COOKIE_ACCESS,
-                value=access,
+                key=settings.AUTH_COOKIE_REFRESH,
+                value=new_refresh,
+                httponly=True,
+                secure=settings.AUTH_COOKIE_SECURE,
+                samesite=settings.AUTH_COOKIE_SAMESITE,
+            )
+
+        return response'''
+
+    def post(self, request, *args, **kwargs):
+        print("=== COOKIES RECEIVED ===", request.COOKIES)
+        print("=== LOOKING FOR KEY ===", settings.AUTH_COOKIE_REFRESH)
+
+        refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
+        print("=== TOKEN FOUND ===", refresh_token)
+
+        if not refresh_token:
+            raise AuthenticationFailed("Refresh token not found in cookies.")
+
+        serializer = self.get_serializer(data={"refresh": refresh_token})
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            print("=== SERIALIZER ERROR ===", serializer.errors)
+            raise
+
+        access = serializer.validated_data.get("access")
+
+        response = Response({"message": "Token refreshed."}, status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            key=settings.AUTH_COOKIE_ACCESS,
+            value=access,
+            httponly=True,
+            secure=settings.AUTH_COOKIE_SECURE,
+            samesite=settings.AUTH_COOKIE_SAMESITE,
+        )
+
+        new_refresh = serializer.validated_data.get("refresh")
+        if new_refresh:
+            response.set_cookie(
+                key=settings.AUTH_COOKIE_REFRESH,
+                value=new_refresh,
                 httponly=True,
                 secure=settings.AUTH_COOKIE_SECURE,
                 samesite=settings.AUTH_COOKIE_SAMESITE,
@@ -189,17 +240,19 @@ class CustomTokenRefreshView(TokenRefreshView):
 # invalidate the token server-side (would need blacklisting for that),
 # it just removes it from the browser.
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def post(self, request):
         response = Response(
             {"message": "Logged out successfully."},
             status=status.HTTP_200_OK
         )
+
         response.delete_cookie(settings.AUTH_COOKIE_ACCESS)
         response.delete_cookie(settings.AUTH_COOKIE_REFRESH)
-        return response
 
+        return response
+    
 
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
@@ -278,7 +331,7 @@ class ChangePasswordView(APIView):
 
 
 class PasswordResetRequestView(APIView):
-    permission_classes = []  # public — user isn't logged in
+    permission_classes = []
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
@@ -298,8 +351,6 @@ class PasswordResetRequestView(APIView):
                 recipient_list=[email],
             )
 
-        # Always return the same response, whether email exists or not —
-        # prevents attackers from using this endpoint to check which emails are registered.
         return Response(
             {"message": "If an account with that email exists, a reset link has been sent."},
             status=status.HTTP_200_OK

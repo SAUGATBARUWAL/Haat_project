@@ -6,7 +6,7 @@ export default function Logo() {
   return (
     <Link
       to="/"
-      className="flex items-center gap-2 text-3xl font-bold text-white tracking-wide"
+      className="flex items-center gap-2 text-3xl font-bold text-white tracking-wide "
     >
       <Store size={32} />
       <span>HAAT</span>
