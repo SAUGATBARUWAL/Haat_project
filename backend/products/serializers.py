@@ -1,110 +1,78 @@
 from rest_framework import serializers
-from .models import Product, Category
-from core.imagekit import upload_image
 
-
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ['id', 'name', 'slug']
+from .models import (
+    Product,
+    Cart,
+    CartItem,
+    Order,
+    OrderItem
+)
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    image = serializers.ImageField(required=False, allow_null=True, write_only=True)
-    image_url = serializers.URLField(source='image', read_only=True)
 
-    # Accepts a list of category IDs on write, e.g. "categories": [1, 3]
-    categories = serializers.PrimaryKeyRelatedField(
-        queryset=Category.objects.all(),
-        many=True,
-        required=False,
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+
+    product = ProductSerializer(
+        read_only=True
     )
-    # Returns full nested category objects on read
-    categories_detail = CategorySerializer(source='categories', many=True, read_only=True)
 
     class Meta:
-        model = Product
+        model = CartItem
+        fields = "__all__"
+
+
+class CartSerializer(serializers.ModelSerializer):
+
+    items = CartItemSerializer(
+        many=True,
+        read_only=True
+    )
+
+    class Meta:
+        model = Cart
+        fields = "__all__"
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+
+    product_name = serializers.CharField(
+        source="product.name",
+        read_only=True
+    )
+
+    class Meta:
+        model = OrderItem
+
         fields = [
-            'id',
-            'name',
-            'description',
-            'price',
-            'stock',
-            'categories',
-            'categories_detail',
-            'image',
-            'image_url',
-            'is_active',
-            'created_at',
-            'updated_at',
+            "id",
+            "product",
+            "product_name",
+            "quantity",
+            "price"
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-    def validate_price(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Price must be greater than zero.")
-        return value
-
-    def create(self, validated_data):
-        image_file = validated_data.pop('image', None)
-        categories = validated_data.pop('categories', [])
-        seller_profile = self.context['request'].user.seller_profile
-
-        product = Product.objects.create(seller=seller_profile, **validated_data)
-
-        # M2M fields must be set AFTER the product is created (needs a pk to exist)
-        if categories:
-            product.categories.set(categories)
-
-        if image_file:
-            image_url = upload_image(
-                image_file,
-                image_file.name,
-                folder=f"/products/{product.id}"
-            )
-            if image_url:
-                product.image = image_url
-                product.save(update_fields=['image'])
-
-        return product
-
-    def update(self, instance, validated_data):
-        image_file = validated_data.pop('image', None)
-        categories = validated_data.pop('categories', None)
-
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        # Only touch categories if the field was actually sent —
-        # avoids accidentally wiping categories on a partial update
-        # that doesn't mention them at all.
-        if categories is not None:
-            instance.categories.set(categories)
-
-        if image_file:
-            image_url = upload_image(
-                image_file,
-                image_file.name,
-                folder=f"/products/{instance.id}"
-            )
-            if image_url:
-                instance.image = image_url
-
-        instance.save()
-        return instance
 
 
-class ProductPriceUpdateSerializer(serializers.ModelSerializer):
-    """
-    Lightweight serializer for quick price-only updates,
-    so sellers don't need to resend the entire product payload
-    just to change a price.
-    """
+class OrderSerializer(serializers.ModelSerializer):
+
+    items = OrderItemSerializer(
+        many=True,
+        read_only=True
+    )
+
     class Meta:
-        model = Product
-        fields = ['price']
+        model = Order
 
-    def validate_price(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Price must be greater than zero.")
-        return value
+        fields = [
+            "id",
+            "user",
+            "total_price",
+            "status",
+            "created_at",
+            "items"
+        ]

@@ -1,13 +1,56 @@
 from django.urls import path
-from . import views
+
+from .views import (
+    ProductListCreateView,
+    ProductDetailView,
+    AddToCartView,
+    CartView,
+    RemoveCartItemView,
+    CreateOrderView,
+    OrderListView,
+    OrderDetailView
+)
 
 urlpatterns = [
-    path('', views.ProductListView.as_view(), name='product-list'),
-    path('<int:pk>/', views.ProductDetailView.as_view(), name='product-detail'),
 
-    path('mine/', views.MyProductListView.as_view(), name='my-products'),
-    path('create/', views.ProductCreateView.as_view(), name='product-create'),
-    path('<int:pk>/edit/', views.ProductUpdateView.as_view(), name='product-update'),
-    path('<int:pk>/price/', views.ProductPriceUpdateView.as_view(), name='product-price-update'),
-    path('<int:pk>/delete/', views.ProductDeleteView.as_view(), name='product-delete'),
+    path(
+        'products/',
+        ProductListCreateView.as_view()
+    ),
+
+    path(
+        'products/<int:pk>/',
+        ProductDetailView.as_view()
+    ),
+
+    path(
+        'cart/add/',
+        AddToCartView.as_view()
+    ),
+
+    path(
+        'cart/',
+        CartView.as_view()
+    ),
+
+    path(
+        'cart/remove/<int:item_id>/',
+        RemoveCartItemView.as_view()
+    ),
+
+    path(
+        'orders/create/',
+        CreateOrderView.as_view()
+    ),
+
+    path(
+        'orders/',
+        OrderListView.as_view()
+    ),
+
+    path(
+        'orders/<int:order_id>/',
+        OrderDetailView.as_view()
+    ),
+
 ]
