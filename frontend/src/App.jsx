@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
 import Home from "./features/home/Home";
 
@@ -9,29 +9,27 @@ import SellerSignup from "./features/auth/SellerSignup";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Home */}
-        <Route path="/" element={<Home />} />
+    <Routes>
+      {/* Home */}
+      <Route path="/" element={<Home />} />
 
-        {/* Authentication */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<SignupChoice />} />
-        <Route
-          path="/signup/customer"
-          element={<CustomerSignup />}
-        />
-        <Route
-          path="/signup/seller"
-          element={<SellerSignup />}
-        />
+      {/* Authentication */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<SignupChoice />} />
+      <Route
+        path="/signup/customer"
+        element={<CustomerSignup />}
+      />
+      <Route
+        path="/signup/seller"
+        element={<SellerSignup />}
+      />
 
-        {/* Placeholder pages */}
-        <Route path="/wishlist" element={<h1>Wishlist</h1>} />
-        <Route path="/cart" element={<h1>Cart</h1>} />
-        <Route path="/products" element={<h1>Products</h1>} />
-      </Routes>
-    </BrowserRouter>
+      {/* Placeholder pages */}
+      <Route path="/wishlist" element={<h1>Wishlist</h1>} />
+      <Route path="/cart" element={<h1>Cart</h1>} />
+      <Route path="/products" element={<h1>Products</h1>} />
+    </Routes>
   );
 }
 

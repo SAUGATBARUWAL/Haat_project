@@ -2,152 +2,126 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GreenButton from "../../components/buttons/GreenButton";
 import AuthLayout from "../../layouts/AuthLayout";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8000";
+import api from "../../utils/api";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+    const { fetchProfile } = useAuth();
 
-  const [form, setForm] = useState({
-    username: "",
-    password: "",
-  });
+    const [form, setForm] = useState({
+        username: "",
+        password: "",
+    });
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    setForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
+    const handleChange = (e) => {
+        setForm((prev) => ({
+            ...prev,
+            [e.target.name]: e.target.value,
+        }));
+    };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError("");
 
-    setLoading(true);
-    setError("");
+        try {
+            // Login request
+            const response = await api.post("/login/", form);
+            const data = response.data;
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/login/`, {
-        method: "POST",
+            // Update authentication state
+            await fetchProfile();
 
-        // Required for HTTP-only JWT cookies
-        credentials: "include",
+            // Redirect based on role
+            if (data.role === "seller") {
+                if (data.verification_status === "pending") {
+                    navigate("/seller/pending-verification");
+                } else {
+                    navigate("/seller/dashboard");
+                }
+            } else {
+                navigate("/");
+            }
+        } catch (err) {
+            setError(
+                err.response?.data?.detail ||
+                err.response?.data?.message ||
+                "Invalid username or password."
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+    return (
+        <AuthLayout>
+            <div className="w-full max-w-md rounded-2xl bg-white/80 backdrop-blur-md shadow-2xl shadow-gray-700/40 p-8">
+                <h2 className="text-3xl font-bold text-center text-green-700">
+                    HAAT
+                </h2>
 
-        body: JSON.stringify(form),
-      });
+                <p className="mt-2 text-center text-gray-600">
+                    Enter your login credentials
+                </p>
 
-      const data = await response.json().catch(() => ({}));
+                {error && (
+                    <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-red-600">
+                        {error}
+                    </div>
+                )}
 
-      if (!response.ok) {
-        throw new Error(
-          data.detail ||
-            data.message ||
-            "Invalid username or password."
-        );
-      }
+                <form onSubmit={handleLogin} className="mt-6 space-y-4">
+                    <div>
+                        <label className="mb-1 block text-sm font-medium">
+                            Username
+                        </label>
+                        <input
+                            type="text"
+                            name="username"
+                            value={form.username}
+                            onChange={handleChange}
+                            placeholder="Enter username"
+                            required
+                            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                    </div>
 
-      /*
-       * DO NOT store tokens in localStorage.
-       * The backend already stores them as HTTP-only cookies.
-       */
+                    <div>
+                        <label className="mb-1 block text-sm font-medium">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            name="password"
+                            value={form.password}
+                            onChange={handleChange}
+                            placeholder="Enter password"
+                            required
+                            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                    </div>
 
-      // Redirect according to role if returned by backend
-      if (data.role === "seller") {
-        navigate("/seller/dashboard");
-      } else if (data.role === "customer") {
-        navigate("/");
-      } else {
-        // Fallback
-        navigate("/");
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+                    <GreenButton type="submit" loading={loading}>
+                        Login
+                    </GreenButton>
+                </form>
 
-  return (
-    <AuthLayout>
-      <div className="w-full max-w-md rounded-2xl bg-white/80 backdrop-blur-md shadow-2xl shadow-gray-700/40 p-8">
-
-        <h2 className="text-3xl font-bold text-center text-green-700">
-          HAAT
-        </h2>
-
-        <p className="text-center text-gray-600 mt-2">
-          Enter your login credentials
-        </p>
-
-        {error && (
-          <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-red-600">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="mt-6 space-y-4">
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Username
-            </label>
-
-            <input
-              type="text"
-              name="username"
-              value={form.username}
-              onChange={handleChange}
-              placeholder="Enter username"
-              required
-              className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              Password
-            </label>
-
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Enter password"
-              required
-              className="w-full rounded-lg border px-4 py-3 focus:ring-2 focus:ring-green-500 outline-none"
-            />
-          </div>
-
-          <GreenButton
-            type="submit"
-            loading={loading}
-          >
-            Login
-          </GreenButton>
-
-        </form>
-
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Not registered?{" "}
-          <button
-            type="button"
-            onClick={() => navigate("/signup")}
-            className="font-medium text-blue-600 hover:underline"
-          >
-            Create an account
-          </button>
-        </p>
-
-      </div>
-    </AuthLayout>
-  );
+                <p className="mt-6 text-center text-sm text-gray-600">
+                    Not registered?{" "}
+                    <button
+                        type="button"
+                        onClick={() => navigate("/signup")}
+                        className="font-medium text-blue-600 hover:underline"
+                    >
+                        Create an account
+                    </button>
+                </p>
+            </div>
+        </AuthLayout>
+    );
 }

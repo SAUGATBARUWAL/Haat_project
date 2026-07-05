@@ -5,7 +5,7 @@ export default function CartButton() {
   return (
     <Link
       to="/cart"
-      className="relative hover:text-green-200 transition"
+      className="relative hover:text-green-200 transition text-white"
     >
       <ShoppingCart size={24} />
 
