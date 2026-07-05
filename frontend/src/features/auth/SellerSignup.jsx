@@ -1,211 +1,300 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import GreenButton from "../../components/buttons/GreenButton";
+import AuthLayout from "../../layouts/AuthLayout";
+import { ImageUp } from "lucide-react";
+import api from "../../utils/api";
+import { useAuth } from "../../context/AuthContext";
+
+const MAX_FILE_SIZE_MB = 5;
 
 function SellerSignup() {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
+    const { fetchProfile } = useAuth();
 
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    phone: "",
-    business_name: "",
-    pan_number: "",
-    business_address: "",
-    profile_picture: null,
-    business_document: null,
-  });
+    const [formData, setFormData] = useState({
+        username: "",
+        email: "",
+        password: "",
+        phone: "",
+        business_name: "",
+        pan_number: "",
+        business_address: "",
+        profile_picture: null,
+        business_document: null,
+    });
 
-  const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({});
+    const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value, files } = e.target;
+    const handleChange = (e) => {
+        const { name, value, files } = e.target;
 
-    if (files) {
-      setFormData({
-        ...formData,
-        [name]: files[0],
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: value,
-      });
-    }
-  };
+        if (files) {
+            const file = files[0];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+            if (file && file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                setErrors((prev) => ({
+                    ...prev,
+                    [name]: `File must be smaller than ${MAX_FILE_SIZE_MB}MB`,
+                }));
+                return;
+            }
 
-    setLoading(true);
+            setErrors((prev) => ({ ...prev, [name]: null }));
+            setFormData((prev) => ({ ...prev, [name]: file }));
+        } else if (name === "phone") {
+            const digitsOnly = value.replace(/\D/g, "").slice(0, 15);
 
-    try {
-      const data = new FormData();
-
-      Object.keys(formData).forEach((key) => {
-        if (formData[key] !== null) {
-          data.append(key, formData[key]);
+            setErrors((prev) => ({ ...prev, [name]: null }));
+            setFormData((prev) => ({ ...prev, [name]: digitsOnly }));
+        } else {
+            setErrors((prev) => ({ ...prev, [name]: null }));
+            setFormData((prev) => ({ ...prev, [name]: value }));
         }
-      });
+    };
 
-      const response = await fetch(
-        "http://localhost:8000/api/register/seller/",
-        {
-          method: "POST",
-          body: data,
+    const validate = () => {
+        const newErrors = {};
+
+        if (!/^\d{9}$/.test(formData.pan_number.trim())) {
+            newErrors.pan_number = "PAN number must be exactly 9 digits.";
         }
-      );
 
-      const result = await response.json();
+        if (!formData.phone || formData.phone.length < 7) {
+            newErrors.phone = "Phone number must be at least 7 digits.";
+        }
 
-      if (!response.ok) {
-        throw new Error(
-          JSON.stringify(result) || "Registration failed"
-        );
-      }
+        if (!formData.business_document) {
+            newErrors.business_document = "Business document is required.";
+        }
 
-      alert(
-        "Seller registered successfully. Verification pending."
-      );
+        setErrors((prev) => ({ ...prev, ...newErrors }));
 
-      navigate("/");
-    } catch (error) {
-      console.error(error);
-      alert("Registration failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+        return Object.keys(newErrors).length === 0;
+    };
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex justify-center items-center px-4 py-8">
-      <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg p-8">
-        <h2 className="text-3xl font-bold text-center mb-6">
-          Seller Registration
-        </h2>
+    const extractErrorMessage = (data) => {
+        if (!data) return "Registration failed. Please try again.";
+        if (typeof data === "string") return data;
+        if (data.detail) return data.detail;
+        if (data.message) return data.message;
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        const firstKey = Object.keys(data)[0];
 
-          <input
-            type="text"
-            name="username"
-            placeholder="Username"
-            required
-            value={formData.username}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
+        if (firstKey) {
+            const value = data[firstKey];
+            const text = Array.isArray(value) ? value[0] : value;
+            return `${firstKey}: ${text}`;
+        }
 
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            required
-            value={formData.email}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
+        return "Registration failed. Please try again.";
+    };
 
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            required
-            value={formData.password}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
+    const handleSubmit = async (e) => {
+        e.preventDefault();
 
-          <input
-            type="text"
-            name="phone"
-            placeholder="Phone Number"
-            value={formData.phone}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
+        if (!validate()) return;
 
-          <input
-            type="text"
-            name="business_name"
-            placeholder="Business Name"
-            required
-            value={formData.business_name}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
+        setLoading(true);
 
-          <input
-            type="text"
-            name="pan_number"
-            placeholder="PAN Number"
-            required
-            value={formData.pan_number}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
+        try {
+            const data = new FormData();
 
-          <textarea
-            name="business_address"
-            placeholder="Business Address"
-            rows="3"
-            required
-            value={formData.business_address}
-            onChange={handleChange}
-            className="w-full border rounded-lg px-4 py-3"
-          />
+            Object.keys(formData).forEach((key) => {
+                if (formData[key] !== null) {
+                    data.append(key, formData[key]);
+                }
+            });
 
-          <div>
-            <label className="block mb-2 font-medium">
-              Profile Picture
-            </label>
+            await api.post("/register/seller/", data);
 
-            <input
-              type="file"
-              name="profile_picture"
-              accept="image/*"
-              onChange={handleChange}
-              className="w-full border rounded-lg px-4 py-2"
-            />
-          </div>
+            // Update authentication state
+            await fetchProfile();
 
-          <div>
-            <label className="block mb-2 font-medium">
-              Business Document
-            </label>
+            alert("Seller registered successfully. Verification pending.");
 
-            <input
-              type="file"
-              name="business_document"
-              required
-              onChange={handleChange}
-              className="w-full border rounded-lg px-4 py-2"
-            />
-          </div>
+            navigate("/");
+        } catch (err) {
+            alert(extractErrorMessage(err.response?.data));
+        } finally {
+            setLoading(false);
+        }
+    };
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition"
-          >
-            {loading
-              ? "Registering..."
-              : "Register as Seller"}
-          </button>
-        </form>
+    return (
+        <AuthLayout>
+            <div className="w-full max-w-2xl rounded-xl bg-white p-8 shadow-lg">
+                <h2 className="mb-6 text-center text-3xl font-bold">
+                    Seller Registration
+                </h2>
 
-        <p className="text-center mt-6">
-          Already have an account?{" "}
-          <button
-            onClick={() => navigate("/")}
-            className="text-blue-600 hover:underline"
-          >
-            Login
-          </button>
-        </p>
-      </div>
-    </div>
-  );
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <input
+                        type="text"
+                        name="username"
+                        placeholder="Username"
+                        required
+                        value={formData.username}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                    />
+
+                    <input
+                        type="email"
+                        name="email"
+                        placeholder="Email"
+                        required
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                    />
+
+                    <input
+                        type="password"
+                        name="password"
+                        placeholder="Password"
+                        required
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                    />
+
+                    <div>
+                        <input
+                            type="tel"
+                            inputMode="numeric"
+                            name="phone"
+                            placeholder="Phone Number"
+                            maxLength={15}
+                            required
+                            value={formData.phone}
+                            onChange={handleChange}
+                            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                        />
+
+                        {errors.phone && (
+                            <p className="mt-1 text-sm text-red-600">
+                                {errors.phone}
+                            </p>
+                        )}
+                    </div>
+
+                    <input
+                        type="text"
+                        name="business_name"
+                        placeholder="Business Name"
+                        required
+                        value={formData.business_name}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                    />
+
+                    <div>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            name="pan_number"
+                            placeholder="PAN Number (9 digits)"
+                            maxLength={9}
+                            required
+                            value={formData.pan_number}
+                            onChange={handleChange}
+                            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                        />
+
+                        {errors.pan_number && (
+                            <p className="mt-1 text-sm text-red-600">
+                                {errors.pan_number}
+                            </p>
+                        )}
+                    </div>
+
+                    <textarea
+                        name="business_address"
+                        placeholder="Business Address"
+                        rows="2"
+                        required
+                        value={formData.business_address}
+                        onChange={handleChange}
+                        className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                    />
+
+                    <div>
+                        <label className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-6 transition hover:border-green-600">
+                            <ImageUp className="h-10 w-10 text-green-600" />
+
+                            <span className="mt-2 text-sm text-gray-600">
+                                {formData.profile_picture
+                                    ? formData.profile_picture.name
+                                    : "Upload Profile Picture (optional)"}
+                            </span>
+
+                            <input
+                                type="file"
+                                name="profile_picture"
+                                accept="image/*"
+                                onChange={handleChange}
+                                className="hidden"
+                            />
+                        </label>
+
+                        {errors.profile_picture && (
+                            <p className="mt-1 text-sm text-red-600">
+                                {errors.profile_picture}
+                            </p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="mt-4 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-6 transition hover:border-green-600">
+                            <ImageUp className="h-10 w-10 text-green-600" />
+
+                            <span className="mt-2 text-sm text-gray-600">
+                                {formData.business_document
+                                    ? formData.business_document.name
+                                    : "Upload Business Document (PDF or image)"}
+                            </span>
+
+                            <input
+                                type="file"
+                                name="business_document"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                required
+                                onChange={handleChange}
+                                className="hidden"
+                            />
+                        </label>
+
+                        {errors.business_document && (
+                            <p className="mt-1 text-sm text-red-600">
+                                {errors.business_document}
+                            </p>
+                        )}
+                    </div>
+
+                    <GreenButton
+                        type="submit"
+                        loading={loading}
+                        loadingText="Registering..."
+                    >
+                        Register
+                    </GreenButton>
+                </form>
+
+                <p className="mt-6 text-center">
+                    Already have an account?{" "}
+                    <button
+                        type="button"
+                        onClick={() => navigate("/")}
+                        className="text-blue-600 hover:underline"
+                    >
+                        Login
+                    </button>
+                </p>
+            </div>
+        </AuthLayout>
+    );
 }
 
 export default SellerSignup;

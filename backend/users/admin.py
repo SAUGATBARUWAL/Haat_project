@@ -18,6 +18,13 @@ class CustomUserAdmin(UserAdmin):
         queryset.update(is_active=True)
     unban_users.short_description = "Unban selected users"
 
+    def has_delete_permission(self, request, obj=None):
+        # Blocks deletion of admin accounts, whether deleting a specific
+        # row from the list, from the individual edit page, or in bulk.
+        if obj is not None and obj.role == 'admin':
+            return False
+        return super().has_delete_permission(request, obj)
+
 
 admin.site.register(SellerProfile)
 admin.site.register(CustomerProfile)
