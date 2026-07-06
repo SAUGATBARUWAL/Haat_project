@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework.generics import (
     ListAPIView,
     RetrieveAPIView,
@@ -24,13 +25,20 @@ class CategoryListView(ListAPIView):
 class ProductListView(ListAPIView):
     """Public — anyone can browse all active products, optionally filtered by category."""
     serializer_class = ProductSerializer
-    permission_classes = []  # public
+    permission_classes = []  # public means no authentication required anyone logged in or not can access this view
 
     def get_queryset(self):
-        queryset = Product.objects.filter(is_active=True)
+        queryset = Product.objects.filter(is_active=True)# this helps to filter the products that are active and available for sale
         category_slug = self.request.query_params.get('category')
         if category_slug:
             queryset = queryset.filter(categories__slug=category_slug)
+
+        search = self.request.query_params.get('search')
+
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
         return queryset.distinct()  # distinct() avoids duplicate rows if a product matches multiple filters
 
 
