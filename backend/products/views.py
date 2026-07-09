@@ -1,58 +1,54 @@
-from django.db.models import Q # this is used to perform database queries with complex lookups, such as searching for products by name or description
+from django.db.models import Q
 from rest_framework.generics import (
-    ListAPIView,
-    RetrieveAPIView,
-    CreateAPIView,
-    UpdateAPIView,
-    DestroyAPIView,
+    ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView,
 )
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import Product, Category
-from .serializers import ProductSerializer, ProductPriceUpdateSerializer, CategorySerializer
-from .permissions import IsSellerOwnerOrReadOnly
+from .serializers import CategorySerializer, ProductSerializer, ProductPriceUpdateSerializer
 from users.permissions import IsVerifiedSeller
 
 
 class CategoryListView(ListAPIView):
-    """Public — lists all categories, used to populate filters/dropdowns."""
-    serializer_class = CategorySerializer
+    """Public — list all categories, used to populate filters/menus on the frontend."""
     queryset = Category.objects.all()
-    permission_classes = []  # public
+    serializer_class = CategorySerializer
+    permission_classes = []
 
 
 class ProductListView(ListAPIView):
-    """Public — anyone can browse all active products, optionally filtered by category."""
+    """Public — browse active products, optionally filtered by category or search term."""
     serializer_class = ProductSerializer
-    permission_classes = []  # public means no authentication required anyone logged in or not can access this view
+    permission_classes = []
 
     def get_queryset(self):
-        queryset = Product.objects.filter(is_active=True)# this helps to filter the products that are active and available for sale
+        queryset = Product.objects.filter(is_active=True)
+
         category_slug = self.request.query_params.get('category')
         if category_slug:
             queryset = queryset.filter(categories__slug=category_slug)
 
         search = self.request.query_params.get('search')
-
         if search:
             queryset = queryset.filter(
                 Q(name__icontains=search) | Q(description__icontains=search)
             )
-        return queryset.distinct()  # distinct() avoids duplicate rows if a product matches multiple filters
+
+        return queryset.distinct()
 
 
 class ProductDetailView(RetrieveAPIView):
-    """Public — view a single product."""
+    """Public — view a single active product."""
+    queryset = Product.objects.filter(is_active=True)
     serializer_class = ProductSerializer
-    queryset = Product.objects.all()
     permission_classes = []
 
 
 class MyProductListView(ListAPIView):
-    """Seller-only — view just their own products (active + inactive)."""
+    """Authenticated sellers — list only the products they own (active or not)."""
     serializer_class = ProductSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
 
     def get_queryset(self):
         return Product.objects.filter(seller=self.request.user.seller_profile)
@@ -64,30 +60,30 @@ class ProductCreateView(CreateAPIView):
     permission_classes = [IsAuthenticated, IsVerifiedSeller]
     parser_classes = [MultiPartParser, FormParser]
 
-    def get_serializer_context(self):
-        return {'request': self.request}
-
 
 class ProductUpdateView(UpdateAPIView):
-    """Full edit — name, description, price, stock, categories, image."""
+    """Sellers can update their own products only."""
     serializer_class = ProductSerializer
-    queryset = Product.objects.all()
-    permission_classes = [IsAuthenticated, IsSellerOwnerOrReadOnly]
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
     parser_classes = [MultiPartParser, FormParser]
-    http_method_names = ['get', 'put', 'patch']
 
-    def get_serializer_context(self):
-        return {'request': self.request}
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user.seller_profile)
 
 
 class ProductPriceUpdateView(UpdateAPIView):
-    """Quick price-only update — lighter payload than full edit."""
+    """Quick price-only patch endpoint, scoped to the seller's own products."""
     serializer_class = ProductPriceUpdateSerializer
-    queryset = Product.objects.all()
-    permission_classes = [IsAuthenticated, IsSellerOwnerOrReadOnly]
-    http_method_names = ['patch']
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
+
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user.seller_profile)
 
 
 class ProductDeleteView(DestroyAPIView):
-    queryset = Product.objects.all()
-    permission_classes = [IsAuthenticated, IsSellerOwnerOrReadOnly]
+    """Sellers can delete their own products only."""
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
+
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user.seller_profile)
