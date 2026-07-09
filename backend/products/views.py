@@ -1,38 +1,50 @@
-from rest_framework import generics
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny
-
-from users.models import User
-
-from .models import (
-    Product,
-    Cart,
-    CartItem,
-    Order,
-    OrderItem
+from django.db.models import Q
+from rest_framework.generics import (
+    ListAPIView,
+    RetrieveAPIView,
+    CreateAPIView,
+    UpdateAPIView,
+    DestroyAPIView,
 )
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
 
-from .serializers import (
-    ProductSerializer,
-    CartSerializer,
-    OrderSerializer
-)
+from .models import Product, Category
+from .serializers import ProductSerializer, ProductPriceUpdateSerializer, CategorySerializer
+from .permissions import IsSellerOwnerOrReadOnly
+from users.permissions import IsVerifiedSeller
 
 
-####################################
-# Products
-####################################
+class CategoryListView(ListAPIView):
+    """Public — lists all categories, used to populate filters/dropdowns."""
+    serializer_class = CategorySerializer
+    queryset = Category.objects.all()
+    permission_classes = []  # public
 
-class ProductListCreateView(generics.ListCreateAPIView):
 
-    queryset = Product.objects.all()
+class ProductListView(ListAPIView):
+    """Public — anyone can browse all active products, optionally filtered by category."""
     serializer_class = ProductSerializer
+    permission_classes = []  # public means no authentication required anyone logged in or not can access this view
+
+    def get_queryset(self):
+        queryset = Product.objects.filter(is_active=True)# this helps to filter the products that are active and available for sale
+        category_slug = self.request.query_params.get('category')
+        if category_slug:
+            queryset = queryset.filter(categories__slug=category_slug)
+
+        search = self.request.query_params.get('search')
+
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
+        return queryset.distinct()  # distinct() avoids duplicate rows if a product matches multiple filters
 
 
-class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
-
+class ProductDetailView(RetrieveAPIView):
+    """Public — view a single product."""
+    serializer_class = ProductSerializer
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
 
