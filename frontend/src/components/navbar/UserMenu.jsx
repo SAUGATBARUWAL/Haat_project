@@ -51,12 +51,13 @@ export default function UserMenu() {
                     </div>
                 )}
 
-                <span className="hidden md:block font-medium">
+                <span className="hidden md:block font-medium text-white">
                     My Account
                 </span>
 
                 <ChevronDown
                     size={18}
+                    color="white"
                     className={`transition-transform ${
                         open ? "rotate-180" : ""
                     }`}

@@ -1,5 +1,6 @@
 import Navbar from "../../components/navbar/Navbar";
 import Hero from "../../components/hero/Hero";
+import Categories from "../../components/categories/Categories";
 
 export default function Home() {
   return (
@@ -32,6 +33,7 @@ export default function Home() {
       
 
       {/* Categories */}
+      <Categories />
 
       {/* Featured Products */}
 
