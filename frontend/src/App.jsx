@@ -16,7 +16,7 @@ function App() {
       {/* Home */}
       <Route path="/" element={<Home />} />
 
-      {/* Authentication
+      {/* Authentication */}
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignupChoice />} />
       <Route
@@ -26,9 +26,7 @@ function App() {
       <Route
         path="/signup/seller"
         element={<SellerSignup />}
-      /> */}
-
-      
+      /> 
 
       {/* Placeholder pages */}
       <Route path="/wishlist" element={<h1>Wishlist</h1>} />
