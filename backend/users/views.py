@@ -1,5 +1,5 @@
 from rest_framework import status
-from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, DestroyAPIView
+from rest_framework.generics import CreateAPIView, RetrieveUpdateAPIView, DestroyAPIView, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -15,13 +15,14 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 
 from .permissions import IsAdmin
-from .models import User
+from .models import User, SellerProfile
 from .serializers import (
-    CustomerRegisterSerializer,
+    CustomerRegisterSerializer, 
     SellerRegisterSerializer,
-    CustomTokenObtainPairSerializer,
+    CustomTokenObtainPairSerializer, 
     UserProfileSerializer,
     SellerProfileSerializer,
+    SellerPublicProfileSerializer,
     CustomerProfileSerializer,
     CustomerDeliveryDetailsSerializer,
     CustomerProfilePictureSerializer,
@@ -365,3 +366,9 @@ class PasswordResetConfirmView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response({"message": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+
+class SellerPublicProfileView(RetrieveAPIView):
+    """Public — anyone can view a seller's storefront info, no auth required."""
+    queryset = SellerProfile.objects.all()
+    serializer_class = SellerPublicProfileSerializer
+    permission_classes = []

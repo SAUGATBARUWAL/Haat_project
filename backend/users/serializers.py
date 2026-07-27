@@ -261,6 +261,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class SellerProfileSerializer(serializers.ModelSerializer):
+    phone = serializers.CharField(source="user.phone", read_only=True)
     class Meta:
         model = SellerProfile
         fields = [
@@ -271,6 +272,7 @@ class SellerProfileSerializer(serializers.ModelSerializer):
             'business_document',
             'verification_status',
             'created_at',
+            'phone',
         ]
 
 
@@ -334,3 +336,27 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         user.set_password(self.validated_data['new_password'])
         user.save(update_fields=['password'])
         return user
+
+
+class SellerPublicProfileSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(source="user.email", read_only=True)
+    phone = serializers.CharField(source="user.phone", read_only=True)
+    """
+        Public storefront view of a seller — shown when a customer clicks a
+        business name from a product card. Deliberately excludes
+        pan_number, business_document, and verification_status details;
+        those are private/internal fields, not for customer-facing display.
+    """
+
+    class Meta:
+        model = SellerProfile
+        fields = [
+            "id",
+            "business_name",
+            "profile_picture",
+            "business_address",
+            "phone",
+            "email",
+            "verification_status",
+            "created_at",
+        ]

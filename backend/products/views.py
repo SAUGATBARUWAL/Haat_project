@@ -3,12 +3,19 @@ from rest_framework.generics import (
     ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView,
 )
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 from .models import Product, Category
 from .serializers import CategorySerializer, ProductSerializer, ProductPriceUpdateSerializer
 from users.permissions import IsVerifiedSeller
 
+
+
+class ProductPagination(PageNumberPagination):
+    page_size = 12
+    page_size_query_param = "page_size"  # lets the frontend override if ever needed
+    max_page_size = 48
 
 class CategoryListView(ListAPIView):
     """Public — list all categories, used to populate filters/menus on the frontend."""
@@ -18,9 +25,10 @@ class CategoryListView(ListAPIView):
 
 
 class ProductListView(ListAPIView):
-    """Public — browse active products, optionally filtered by category or search term."""
+    """Public — browse active products, optionally filtered by category, seller, or search term."""
     serializer_class = ProductSerializer
     permission_classes = []
+    pagination_class = ProductPagination
 
     def get_queryset(self):
         queryset = Product.objects.filter(is_active=True)
@@ -28,6 +36,10 @@ class ProductListView(ListAPIView):
         category_slug = self.request.query_params.get('category')
         if category_slug:
             queryset = queryset.filter(categories__slug=category_slug)
+
+        seller_id = self.request.query_params.get('seller')  # <-- new
+        if seller_id:
+            queryset = queryset.filter(seller_id=seller_id)
 
         search = self.request.query_params.get('search')
         if search:
@@ -37,6 +49,11 @@ class ProductListView(ListAPIView):
 
         return queryset.distinct()
 
+class CategoryCreateView(CreateAPIView):
+    """Authenticated, verified sellers can add a new category on the fly."""
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
 
 class ProductDetailView(RetrieveAPIView):
     """Public — view a single active product."""
@@ -65,7 +82,7 @@ class ProductUpdateView(UpdateAPIView):
     """Sellers can update their own products only."""
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated, IsVerifiedSeller]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_queryset(self):
         return Product.objects.filter(seller=self.request.user.seller_profile)
@@ -87,3 +104,4 @@ class ProductDeleteView(DestroyAPIView):
 
     def get_queryset(self):
         return Product.objects.filter(seller=self.request.user.seller_profile)
+
