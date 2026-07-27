@@ -1,433 +1,107 @@
-from rest_framework import generics
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import AllowAny
-
-from users.models import User
-
-from .models import (
-    Product,
-    Cart,
-    CartItem,
-    Order,
-    OrderItem
+from django.db.models import Q
+from rest_framework.generics import (
+    ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView, DestroyAPIView,
 )
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
-from .serializers import (
-    ProductSerializer,
-    CartSerializer,
-    OrderSerializer
-)
+from .models import Product, Category
+from .serializers import CategorySerializer, ProductSerializer, ProductPriceUpdateSerializer
+from users.permissions import IsVerifiedSeller
 
 
-####################################
-# Products
-####################################
 
-class ProductListCreateView(generics.ListCreateAPIView):
+class ProductPagination(PageNumberPagination):
+    page_size = 12
+    page_size_query_param = "page_size"  # lets the frontend override if ever needed
+    max_page_size = 48
 
-    queryset = Product.objects.all()
+class CategoryListView(ListAPIView):
+    """Public — list all categories, used to populate filters/menus on the frontend."""
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = []
+
+
+class ProductListView(ListAPIView):
+    """Public — browse active products, optionally filtered by category, seller, or search term."""
     serializer_class = ProductSerializer
+    permission_classes = []
+    pagination_class = ProductPagination
 
+    def get_queryset(self):
+        queryset = Product.objects.filter(is_active=True)
 
-class ProductDetailView(generics.RetrieveUpdateDestroyAPIView):
+        category_slug = self.request.query_params.get('category')
+        if category_slug:
+            queryset = queryset.filter(categories__slug=category_slug)
 
-    queryset = Product.objects.all()
+        seller_id = self.request.query_params.get('seller')  # <-- new
+        if seller_id:
+            queryset = queryset.filter(seller_id=seller_id)
+
+        search = self.request.query_params.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
+
+        return queryset.distinct()
+
+class CategoryCreateView(CreateAPIView):
+    """Authenticated, verified sellers can add a new category on the fly."""
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
+
+class ProductDetailView(RetrieveAPIView):
+    """Public — view a single active product."""
+    queryset = Product.objects.filter(is_active=True)
     serializer_class = ProductSerializer
+    permission_classes = []
 
 
-####################################
-# Add Product To Cart
-####################################
+class MyProductListView(ListAPIView):
+    """Authenticated sellers — list only the products they own (active or not)."""
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
 
-class AddToCartView(APIView):
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user.seller_profile)
 
-    permission_classes = [AllowAny]
 
-    def get(self, request):
+class ProductCreateView(CreateAPIView):
+    """Only verified, authenticated sellers can create a product."""
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
+    parser_classes = [MultiPartParser, FormParser]
 
-        return Response(
-            {
-                "message": "Use POST request"
-            }
-        )
 
-    def post(self, request):
+class ProductUpdateView(UpdateAPIView):
+    """Sellers can update their own products only."""
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
-        user = User.objects.first()
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user.seller_profile)
 
-        if not user:
 
-            return Response(
+class ProductPriceUpdateView(UpdateAPIView):
+    """Quick price-only patch endpoint, scoped to the seller's own products."""
+    serializer_class = ProductPriceUpdateSerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
 
-                {
-                    "error": "No user found"
-                },
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user.seller_profile)
 
-                status=status.HTTP_400_BAD_REQUEST
 
-            )
+class ProductDeleteView(DestroyAPIView):
+    """Sellers can delete their own products only."""
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
 
-        product_id = request.data.get(
-            "product_id"
-        )
+    def get_queryset(self):
+        return Product.objects.filter(seller=self.request.user.seller_profile)
 
-        quantity = int(
-            request.data.get(
-                "quantity",
-                1
-            )
-        )
-
-        try:
-
-            product = Product.objects.get(
-                id=product_id
-            )
-
-        except Product.DoesNotExist:
-
-            return Response(
-
-                {
-                    "error": "Product not found"
-                },
-
-                status=status.HTTP_404_NOT_FOUND
-
-            )
-
-        cart, created = Cart.objects.get_or_create(
-
-            user=user
-
-        )
-
-        item, created = CartItem.objects.get_or_create(
-
-            cart=cart,
-
-            product=product
-
-        )
-
-        if created:
-
-            item.quantity = quantity
-
-        else:
-
-            item.quantity += quantity
-
-        item.save()
-
-        return Response(
-
-            {
-                "message":
-                "Product added to cart"
-            },
-
-            status=status.HTTP_200_OK
-
-        )
-
-
-####################################
-# View Cart
-####################################
-
-class CartView(APIView):
-
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-
-        user = User.objects.first()
-
-        if not user:
-
-            return Response(
-
-                {
-                    "error": "No user found"
-                },
-
-                status=status.HTTP_400_BAD_REQUEST
-
-            )
-
-        cart, created = Cart.objects.get_or_create(
-
-            user=user
-
-        )
-
-        serializer = CartSerializer(
-
-            cart
-
-        )
-
-        return Response(
-
-            serializer.data
-
-        )
-
-
-####################################
-# Remove Cart Item
-####################################
-
-class RemoveCartItemView(APIView):
-
-    permission_classes = [AllowAny]
-
-    def delete(self, request, item_id):
-
-        try:
-
-            item = CartItem.objects.get(
-
-                id=item_id
-
-            )
-
-            item.delete()
-
-            return Response(
-
-                {
-                    "message":
-                    "Item removed"
-                }
-
-            )
-
-        except CartItem.DoesNotExist:
-
-            return Response(
-
-                {
-                    "error":
-                    "Item not found"
-                },
-
-                status=status.HTTP_404_NOT_FOUND
-
-            )
-
-    def get(self, request, item_id):
-
-        return Response(
-
-            {
-                "message":
-                "Use DELETE request"
-            }
-
-        )
-
-
-####################################
-# Create Order
-####################################
-
-class CreateOrderView(APIView):
-
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-
-        user = User.objects.first()
-
-        if not user:
-
-            return Response(
-
-                {
-                    "error":
-                    "No user found"
-                },
-
-                status=status.HTTP_400_BAD_REQUEST
-
-            )
-
-        try:
-
-            cart = Cart.objects.get(
-
-                user=user
-
-            )
-
-        except Cart.DoesNotExist:
-
-            return Response(
-
-                {
-                    "error":
-                    "Cart not found"
-                },
-
-                status=status.HTTP_404_NOT_FOUND
-
-            )
-
-        cart_items = cart.items.all()
-
-        if not cart_items.exists():
-
-            return Response(
-
-                {
-                    "error":
-                    "Cart is empty"
-                },
-
-                status=status.HTTP_400_BAD_REQUEST
-
-            )
-
-        total = 0
-
-        for item in cart_items:
-
-            total += (
-
-                item.product.price *
-
-                item.quantity
-
-            )
-
-        order = Order.objects.create(
-
-            user=user,
-
-            total_price=total
-
-        )
-
-        for item in cart_items:
-
-            OrderItem.objects.create(
-
-                order=order,
-
-                product=item.product,
-
-                quantity=item.quantity,
-
-                price=item.product.price
-
-            )
-
-        cart_items.delete()
-
-        serializer = OrderSerializer(
-
-            order
-
-        )
-
-        return Response(
-
-            serializer.data,
-
-            status=status.HTTP_201_CREATED
-
-        )
-
-
-####################################
-# Order List
-####################################
-
-class OrderListView(APIView):
-
-    permission_classes = [AllowAny]
-
-    def get(self, request):
-
-        user = User.objects.first()
-
-        if not user:
-
-            return Response(
-
-                {
-                    "error":
-                    "No user found"
-                },
-
-                status=status.HTTP_400_BAD_REQUEST
-
-            )
-
-        orders = Order.objects.filter(
-
-            user=user
-
-        )
-
-        serializer = OrderSerializer(
-
-            orders,
-
-            many=True
-
-        )
-
-        return Response(
-
-            serializer.data
-
-        )
-
-
-####################################
-# Order Detail
-####################################
-
-class OrderDetailView(APIView):
-
-    permission_classes = [AllowAny]
-
-    def get(self, request, order_id):
-
-        try:
-
-            order = Order.objects.get(
-
-                id=order_id
-
-            )
-
-        except Order.DoesNotExist:
-
-            return Response(
-
-                {
-                    "error":
-                    "Order not found"
-                },
-
-                status=status.HTTP_404_NOT_FOUND
-
-            )
-
-        serializer = OrderSerializer(
-
-            order
-
-        )
-
-        return Response(
-
-            serializer.data
-
-        )

@@ -1,11 +1,18 @@
 import Navbar from "../../components/navbar/Navbar";
+import Hero from "../../components/hero/Hero";
+import Categories from "../../components/categories/Categories";
 
 export default function Home() {
   return (
     <>
       <Navbar />
 
+      <div className="max-w-7xl mx-auto px-6 mt-7 ">
+        <Hero />
+      </div>
+
       {/* Hero */}
+      {/*
       <section className="bg-green-50 py-20">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <h1 className="text-5xl font-bold">
@@ -21,8 +28,12 @@ export default function Home() {
           </button>
         </div>
       </section>
+      */}
+
+      
 
       {/* Categories */}
+      <Categories />
 
       {/* Featured Products */}
 
