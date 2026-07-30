@@ -22,7 +22,9 @@ urlpatterns = [
 
     path('', include('users.urls')),
     path('products/', include('products.urls')),
-   # path('cart/', include('cart.urls')),
+    path('wishlist/', include('wishlist.urls')),
+    path('cart/', include('cart.urls')), 
+    
    # path('orders/', include('orders.urls')),
    # path('payments/', include('payments.urls')),
 ]

@@ -1,10 +1,44 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import ExtraProductCard from "./ExtraProductCard";
+import { useWishlist } from "../../context/WishlistContext";
+import { useCart } from "../../context/CartContext";
 
 const ProductCard = ({ product }) => {
   const [expanded, setExpanded] = useState(false);
+  const [adding, setAdding] = useState(false);
   const imageUrl = product.images?.[0]?.image || null;
+  const navigate = useNavigate();
+  const { wishlistIds, toggleWishlist, isCustomer: canWishlist } = useWishlist();
+  const { addToCart, isCustomer: canCart } = useCart();
+  const isWishlisted = wishlistIds.has(product.id);
+
+  function handleWishlistClick(e) {
+    e.stopPropagation();
+    if (!canWishlist) {
+      navigate("/login");
+      return;
+    }
+    toggleWishlist(product.id);
+  }
+
+  async function handleAddToCart(e) {
+    e.stopPropagation();
+    if (!canCart) {
+      navigate("/login");
+      return;
+    }
+    if (product.stock <= 0) return;
+
+    setAdding(true);
+    const result = await addToCart(product.id, 1);
+    setAdding(false);
+    if (!result.ok) {
+      // Simple inline feedback — swap for a toast/snackbar if your app has one
+      alert(result.reason === "error" ? "Could not add to cart." : result.reason);
+    }
+  }
 
   return (
     <>
@@ -46,17 +80,22 @@ const ProductCard = ({ product }) => {
 
           <div className="mt-5 flex items-center gap-3">
             <button
-              onClick={(e) => e.stopPropagation()} // don't trigger the expand when clicking this button
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg flex items-center justify-center gap-2 transition"
+              onClick={handleAddToCart}
+              disabled={adding || product.stock <= 0}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50"
             >
               <ShoppingCart size={18} />
-              Add to Cart
+              {adding ? "Adding..." : "Add to Cart"}
             </button>
             <button
-              onClick={(e) => e.stopPropagation()}
+              onClick={handleWishlistClick}
               className="p-2 rounded-lg border hover:bg-gray-100"
             >
-              <Heart size={20} />
+              <Heart
+                size={20}
+                fill={isWishlisted ? "#dc2626" : "none"}
+                className={isWishlisted ? "text-red-600" : "text-gray-700"}
+              />
             </button>
           </div>
         </div>

@@ -19,6 +19,8 @@ import SelProduct from "./features/seller_dash/SelProduct";
 import SellerProfile from "./features/profile/SellerProfile";
 
 import Products from "./features/products/Products";
+import Wishlist from "./features/wishlist/Wishlist";
+import Cart from "./features/cart/Cart";
 
 function App() {
   return (
@@ -39,8 +41,8 @@ function App() {
       />
 
       {/* Placeholder pages */}
-      <Route path="/wishlist" element={<h1>Wishlist</h1>} />
-      <Route path="/cart" element={<h1>Cart</h1>} />
+      <Route path="/wishlist" element={<Wishlist />} />
+      <Route path="/cart" element={<Cart />} />
       <Route path="/products" element={<Products />} />
 
       {/* Profile */}
