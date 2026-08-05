@@ -4,8 +4,8 @@ import api from "../../utils/api"; // adjust path to match your project
 /**
  * A single product card for the seller's "My Products" view.
  * Handles its own edit-mode (price/stock/description only — swapping
- * images or categories isn't supported here, that's a bigger edit best
- * done from a dedicated edit page later if you need it) and delete.
+ * images or categories isn't supported here), a clickable status badge
+ * to toggle is_active (publish/unpublish without deleting), and delete.
  *
  * Props:
  *   product   - product object as returned by GET /products/mine/
@@ -17,6 +17,7 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
   const [error, setError] = useState("");
 
   // Local draft state for the editable fields — only touched while
@@ -73,6 +74,21 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
     }
   }
 
+  async function toggleActive() {
+    setError("");
+    setTogglingActive(true);
+    try {
+      const res = await api.patch(`/products/${product.id}/edit/`, {
+        is_active: !product.is_active,
+      });
+      onUpdated(res.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || "Could not update product status.");
+    } finally {
+      setTogglingActive(false);
+    }
+  }
+
   async function confirmDelete() {
     setDeleting(true);
     setError("");
@@ -107,15 +123,18 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-medium truncate">{product.name}</h3>
-          <span
-            className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+          <button
+            onClick={toggleActive}
+            disabled={togglingActive}
+            title="Click to toggle whether this product is visible to customers"
+            className={`text-xs px-2 py-0.5 rounded-full shrink-0 disabled:opacity-50 ${
               product.is_active
                 ? "bg-green-100 text-green-700"
                 : "bg-gray-100 text-gray-500"
             }`}
           >
-            {product.is_active ? "Active" : "Inactive"}
-          </span>
+            {togglingActive ? "..." : product.is_active ? "Active" : "Inactive"}
+          </button>
         </div>
 
         {error && <p className="text-xs text-red-600 mt-1">{error}</p>}

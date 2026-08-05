@@ -13,7 +13,7 @@ import DashboardHome from "./features/seller_dash/DashboardHome";
 import MyProducts from "./features/seller_dash/SelProduct";
 import AddProduct from "./features/seller_dash/AddProduct";
 
-import Orders from "./features/seller_dash/Orders";
+import SellerOrders from "./features/seller_dash/Orders";
 import Analytics from "./features/seller_dash/Analytics";
 import SelProduct from "./features/seller_dash/SelProduct";
 import SellerProfile from "./features/profile/SellerProfile";
@@ -21,6 +21,8 @@ import SellerProfile from "./features/profile/SellerProfile";
 import Products from "./features/products/Products";
 import Wishlist from "./features/wishlist/Wishlist";
 import Cart from "./features/cart/Cart";
+import OrderDetail from "./features/orders/OrderDetail";
+import Orders from "./features/orders/Orders";
 
 function App() {
   return (
@@ -74,7 +76,7 @@ function App() {
         {/* Seller Orders */}
         <Route
           path="orders"
-          element={<Orders />}
+          element={<SellerOrders />}
         />
 
         {/* Seller Analytics */}
@@ -85,6 +87,9 @@ function App() {
 
       </Route>
       <Route path="/sellers/:id" element={<SellerProfile />} />
+      {/* Orders */}
+      <Route path="/orders" element={<Orders />} />
+      <Route path="/orders/:id" element={<OrderDetail />} />
 
     </Routes>
   );

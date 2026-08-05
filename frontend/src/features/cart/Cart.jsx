@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useCart } from "../../context/CartContext";
+import CheckoutModal from "./CheckoutModal";
 import { Trash2, Minus, Plus } from "lucide-react";
 
 export default function Cart() {
   const { cart, loaded, updateQuantity, removeItem, clearCart } = useCart();
+  const [showCheckout, setShowCheckout] = useState(false);
 
   if (!loaded) {
     return <p className="text-center text-gray-500 py-16">Loading your cart...</p>;
@@ -36,7 +39,11 @@ export default function Cart() {
               className="border border-gray-200 rounded-lg p-4 flex gap-4 items-center"
             >
               {image ? (
-                <img src={image} alt={product.name} className="w-20 h-20 object-cover rounded-md" />
+                <img
+                  src={image}
+                  alt={product.name}
+                  className="w-20 h-20 object-cover rounded-md"
+                />
               ) : (
                 <div className="w-20 h-20 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-400">
                   No image
@@ -91,12 +98,13 @@ export default function Cart() {
       </div>
 
       <button
-        disabled
-        title="Checkout isn't built yet — needs an orders app"
-        className="w-full mt-6 bg-black text-white py-3 rounded-lg font-medium disabled:opacity-40"
+        onClick={() => setShowCheckout(true)}
+        className="w-full mt-6 bg-black text-white py-3 rounded-lg font-medium"
       >
         Checkout
       </button>
+
+      {showCheckout && <CheckoutModal onClose={() => setShowCheckout(false)} />}
     </div>
   );
 }

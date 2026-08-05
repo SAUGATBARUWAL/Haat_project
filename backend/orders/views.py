@@ -1,40 +1,54 @@
-from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView
+from rest_framework import status
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Order
-from .serializers import OrderSerializer, OrderStatusUpdateSerializer
-from .permissions import IsOrderOwner
-from users.permissions import IsAdmin
+from users.permissions import IsCustomer, IsVerifiedSeller
+from .models import Order, OrderItem
+from .serializers import OrderSerializer, CheckoutSerializer, OrderItemSerializer
+
+
+class CheckoutView(APIView):
+    """POST — converts the logged-in customer's cart into an Order."""
+    permission_classes = [IsAuthenticated, IsCustomer]
+
+    def post(self, request):
+        serializer = CheckoutSerializer(data=request.data, context={"request": request})  # was data={}
+        serializer.is_valid(raise_exception=True)
+        order = serializer.save()
+        return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
 
 
 class OrderListView(ListAPIView):
-    """Customer-only — view their own order history."""
+    """GET — the logged-in customer's own order history."""
     serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsCustomer]
 
     def get_queryset(self):
         return Order.objects.filter(customer=self.request.user.customer_profile)
 
 
 class OrderDetailView(RetrieveAPIView):
-    """Customer-only — view a single order they own."""
+    """GET — a single order, scoped to the logged-in customer so they can't view someone else's order by guessing an id."""
     serializer_class = OrderSerializer
-    queryset = Order.objects.all()
-    permission_classes = [IsAuthenticated, IsOrderOwner]
+    permission_classes = [IsAuthenticated, IsCustomer]
+
+    def get_queryset(self):
+        return Order.objects.filter(customer=self.request.user.customer_profile)
 
 
-class OrderCreateView(CreateAPIView):
-    """Customer places a new order with one or more items."""
-    serializer_class = OrderSerializer
-    permission_classes = [IsAuthenticated]
+class SellerOrderItemListView(ListAPIView):
+    """
+    GET — every OrderItem across all orders that belongs to this
+    seller's products. Since Order isn't split per seller, this is
+    item-level, not order-level — a seller sees their own line items,
+    not a full order that might contain another seller's products too.
+    """
+    serializer_class = OrderItemSerializer
+    permission_classes = [IsAuthenticated, IsVerifiedSeller]
 
-    def get_serializer_context(self):
-        return {'request': self.request}
-
-
-class OrderStatusUpdateView(UpdateAPIView):
-    """Admin-only — update order status (e.g. paid, shipped, delivered)."""
-    serializer_class = OrderStatusUpdateSerializer
-    queryset = Order.objects.all()
-    permission_classes = [IsAuthenticated, IsAdmin]
-    http_method_names = ['patch']
+    def get_queryset(self):
+        return OrderItem.objects.filter(
+            product__seller=self.request.user.seller_profile
+        ).select_related("order", "product").order_by("-order__created_at")
