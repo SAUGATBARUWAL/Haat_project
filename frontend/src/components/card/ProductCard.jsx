@@ -64,11 +64,40 @@ const ProductCard = ({ product }) => {
           <h2 className="font-semibold text-lg line-clamp-1">{product.name}</h2>
 
           <div className="flex items-center mt-2">
-            <Star size={16} fill="#FACC15" className="text-yellow-400" />
-            <span className="text-sm text-gray-500 ml-2">4.8 (25 Reviews)</span>
+          <Star size={16} fill="#FACC15" className="text-yellow-400"/>
+
+          <span className="text-sm text-gray-600 ml-1 font-medium">
+            {Number(product.average_rating || 0).toFixed(1)}
+          </span>
+
+          <span className="text-sm text-gray-400 ml-1">
+            ({product.review_count || 0}{" "}
+            {Number(product.review_count || 0) === 1 ? "Review" : "Reviews"})
+          </span>
           </div>
 
-          <p className="text-2xl font-bold text-green-700 mt-3">Rs. {product.price}</p>
+          {/* <p className="text-2xl font-bold text-green-700 mt-3">Rs. {product.price}</p> */}
+          {Number(product.discount_percentage) > 0 ? (
+  <div className="mt-3">
+    <div className="flex items-center gap-2">
+      <p className="text-2xl font-bold text-green-700">
+        Rs. {Number(product.discounted_price).toLocaleString()}
+      </p>
+
+      <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded">
+        {Number(product.discount_percentage)}% OFF
+      </span>
+    </div>
+
+    <p className="text-sm text-gray-500 line-through mt-1">
+      Rs. {Number(product.price).toLocaleString()}
+    </p>
+  </div>
+) : (
+  <p className="text-2xl font-bold text-green-700 mt-3">
+    Rs. {Number(product.price).toLocaleString()}
+  </p>
+)}
 
           <p
             className={`mt-2 text-sm font-medium ${
