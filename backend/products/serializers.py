@@ -1,9 +1,8 @@
+#products/serializers.py
 from rest_framework import serializers
 from .models import Product, Category, ProductImage, ProductSize
 from core.imagekit import upload_image
 from users.models import SellerProfile
-
-
 
 class ProductSellerSerializer(serializers.ModelSerializer):
     """
@@ -154,3 +153,8 @@ class ProductPriceUpdateSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Price must be greater than zero.")
         return value
+
+class ProductStatusUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ['is_active']

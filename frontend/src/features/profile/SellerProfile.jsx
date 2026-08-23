@@ -1,233 +1,477 @@
-import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import {
+    Package,
+    Layers3,
+    Boxes,
+    TrendingUp,
+    AlertTriangle,
+} from "lucide-react";
 import api from "../../utils/api";
-import ProductCard from "../../components/card/ProductCard";
 
-export default function SellerProfile() {
-    const { id } = useParams();
-
-    const [seller, setSeller] = useState(null);
+export default function Analytics() {
     const [products, setProducts] = useState([]);
-
     const [loading, setLoading] = useState(true);
-    const [productError, setProductError] = useState("");
+    const [error, setError] = useState("");
 
     useEffect(() => {
-        if (!id) return;
+        let cancelled = false;
 
-        const loadSellerStore = async () => {
-            setLoading(true);
-            setProductError("");
+        api.get("/products/mine/")
+            .then((res) => {
+                if (!cancelled) {
+                    setProducts(res.data);
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setError(
+                        err.response?.data?.detail ||
+                        "Could not load analytics."
+                    );
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
 
-            try {
-                // ------------------------------------
-                // Get seller information
-                // ------------------------------------
-
-                const sellerResponse = await api.get(`/sellers/${id}/`);
-                setSeller(sellerResponse.data);
-
-                // ------------------------------------
-                // Get seller's products
-                // ------------------------------------
-
-                const productsResponse = await api.get("/products/", {
-                    params: {
-                        seller: id,
-                    },
-                });
-
-                const productData =
-                    productsResponse.data.results ??
-                    productsResponse.data;
-
-                setProducts(productData);
-            }catch (error) {
-              console.error("Full error:", error);
-
-              if (error.response) {
-                  console.error("Status:", error.response.status);
-                  console.error("Data:", error.response.data);
-              }
-
-              setProductError("Could not load this seller's storefront.");
-          
-            } finally {
-                setLoading(false);
-            }
+        return () => {
+            cancelled = true;
         };
-
-        loadSellerStore();
-    }, [id]);
-
-    // ------------------------------------
-    // Loading
-    // ------------------------------------
+    }, []);
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center py-20">
-                <p className="text-lg text-gray-500">
-                    Loading seller storefront...
-                </p>
+            <div className="flex min-h-[400px] items-center justify-center">
+                <div className="text-center">
+                    <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-green-200 border-t-green-600"></div>
+                    <p className="text-sm text-gray-500">
+                        Loading analytics...
+                    </p>
+                </div>
             </div>
         );
     }
 
-    // ------------------------------------
-    // Seller not found
-    // ------------------------------------
-
-    if (!seller) {
+    if (error) {
         return (
-            <div className="text-center py-20">
-                <p className="text-red-600">
-                    Could not load this seller's storefront.
-                </p>
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center">
+                <p className="font-medium text-red-600">{error}</p>
             </div>
         );
     }
+
+    // -----------------------------
+    // Product calculations
+    // -----------------------------
+
+    const totalProducts = products.length;
+
+    const totalStock = products.reduce(
+        (total, product) => total + Number(product.stock || 0),
+        0
+    );
+
+    const outOfStock = products.filter(
+        (product) => Number(product.stock || 0) === 0
+    ).length;
+
+    const lowStock = products.filter(
+        (product) =>
+            Number(product.stock || 0) > 0 &&
+            Number(product.stock || 0) <= 5
+    ).length;
+
+    const totalInventoryValue = products.reduce(
+        (total, product) =>
+            total +
+            Number(product.price || 0) * Number(product.stock || 0),
+        0
+    );
+
+    const averagePrice =
+        totalProducts > 0
+            ? products.reduce(
+                  (total, product) =>
+                      total + Number(product.price || 0),
+                  0
+              ) / totalProducts
+            : 0;
+
+    // -----------------------------
+    // Product categories
+    // -----------------------------
+
+    const categoryMap = {};
+
+    products.forEach((product) => {
+        if (Array.isArray(product.categories)) {
+            product.categories.forEach((category) => {
+                const name =
+                    typeof category === "string"
+                        ? category
+                        : category.name || category.slug;
+
+                if (name) {
+                    categoryMap[name] =
+                        (categoryMap[name] || 0) + 1;
+                }
+            });
+        }
+    });
+
+    const categories = Object.entries(categoryMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+    // -----------------------------
+    // Top products by stock
+    // -----------------------------
+
+    const topStockProducts = [...products]
+        .sort(
+            (a, b) =>
+                Number(b.stock || 0) -
+                Number(a.stock || 0)
+        )
+        .slice(0, 5);
 
     return (
-        <div className="max-w-7xl mx-auto px-4 py-10">
+        <div className="space-y-8">
 
-            {/* ================================================ */}
-            {/* Seller Information */}
-            {/* ================================================ */}
-
-            <div className="bg-white rounded-2xl shadow-md p-6 md:p-8 mb-10">
-
-                <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
-
-                    {/* Profile Picture */}
-
-                    <div className="shrink-0">
-                        {seller.profile_picture ? (
-                            <img
-                                src={seller.profile_picture}
-                                alt={seller.business_name}
-                                className="w-28 h-28 rounded-full object-cover border-4 border-green-600"
-                            />
-                        ) : (
-                            <div className="w-28 h-28 rounded-full bg-gray-200 flex items-center justify-center">
-                                <span className="text-gray-500">
-                                    No Image
-                                </span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Seller Details */}
-
-                    <div className="flex-1 text-center md:text-left">
-
-                        <h1 className="text-3xl font-bold text-gray-900">
-                            {seller.business_name}
-                        </h1>
-
-                        {seller.verification_status && (
-                            <p
-                                className={`inline-block mt-2 font-medium ${
-                                    seller.verification_status === "verified"
-                                        ? "text-green-600"
-                                        : "text-yellow-600"
-                                }`}
-                            >
-                                ● {seller.verification_status}
-                            </p>
-                        )}
-
-                        <div className="mt-5 space-y-2 text-gray-600">
-
-                            {seller.business_address && (
-                                <p>
-                                    📍 {seller.business_address}
-                                </p>
-                            )}
-
-                            {seller.phone && (
-                                <p>
-                                    📞 {seller.phone}
-                                </p>
-                            )}
-
-                            {seller.email && (
-                                <p>
-                                    ✉️ {seller.email}
-                                </p>
-                            )}
-
-                        </div>
-
-                        {!seller.phone &&
-                            !seller.email &&
-                            !seller.business_address && (
-                                <p className="mt-4 text-gray-500">
-                                    Contact information unavailable.
-                                </p>
-                            )}
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            {/* ================================================ */}
-            {/* Products */}
-            {/* ================================================ */}
-
+            {/* Header */}
             <div>
-
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="rounded-xl bg-green-100 p-3">
+                        <TrendingUp
+                            size={24}
+                            className="text-green-700"
+                        />
+                    </div>
 
                     <div>
+                        <h1 className="text-3xl font-bold text-gray-800">
+                            Analytics
+                        </h1>
 
-                        <h2 className="text-2xl font-bold text-gray-900">
-                            Products from this seller
-                        </h2>
-
-                        <p className="text-gray-500 mt-1">
-                            {products.length}{" "}
-                            {products.length === 1
-                                ? "product"
-                                : "products"}
+                        <p className="mt-1 text-sm text-gray-500">
+                            Overview of your store and product inventory.
                         </p>
-
                     </div>
-
                 </div>
+            </div>
 
-                {productError && (
-                    <div className="text-center py-10">
-                        <p className="text-red-600">
-                            {productError}
-                        </p>
-                    </div>
-                )}
+            {/* Main statistics */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
-                {!productError &&
-                    products.length === 0 && (
-                        <div className="text-center py-16">
-                            <p className="text-gray-500 text-lg">
-                                This seller hasn't listed any products yet.
+                {/* Products */}
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">
+                                Total Products
+                            </p>
+
+                            <p className="mt-2 text-3xl font-bold text-gray-800">
+                                {totalProducts}
                             </p>
                         </div>
-                    )}
 
-                {products.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {products.map((product) => (
-                            <ProductCard
-                                key={product.id}
-                                product={product}
+                        <div className="rounded-xl bg-green-100 p-3">
+                            <Package
+                                size={22}
+                                className="text-green-700"
                             />
-                        ))}
+                        </div>
                     </div>
-                )}
+                </div>
 
+                {/* Stock */}
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">
+                                Total Stock
+                            </p>
+
+                            <p className="mt-2 text-3xl font-bold text-gray-800">
+                                {totalStock}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl bg-blue-100 p-3">
+                            <Boxes
+                                size={22}
+                                className="text-blue-600"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Inventory value */}
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">
+                                Inventory Value
+                            </p>
+
+                            <p className="mt-2 text-2xl font-bold text-gray-800">
+                                Rs.{" "}
+                                {totalInventoryValue.toLocaleString(
+                                    "en-NP",
+                                    {
+                                        maximumFractionDigits: 2,
+                                    }
+                                )}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl bg-purple-100 p-3">
+                            <TrendingUp
+                                size={22}
+                                className="text-purple-600"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Average price */}
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">
+                                Average Price
+                            </p>
+
+                            <p className="mt-2 text-2xl font-bold text-gray-800">
+                                Rs.{" "}
+                                {averagePrice.toLocaleString(
+                                    "en-NP",
+                                    {
+                                        maximumFractionDigits: 2,
+                                    }
+                                )}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl bg-orange-100 p-3">
+                            <Layers3
+                                size={22}
+                                className="text-orange-600"
+                            />
+                        </div>
+                    </div>
+                </div>
             </div>
-          
+
+            {/* Inventory status */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-xl bg-red-100 p-3">
+                            <AlertTriangle
+                                size={20}
+                                className="text-red-600"
+                            />
+                        </div>
+
+                        <div>
+                            <p className="text-sm text-gray-500">
+                                Out of Stock
+                            </p>
+
+                            <p className="text-2xl font-bold text-gray-800">
+                                {outOfStock}
+                            </p>
+                        </div>
+                    </div>
+
+                    <p className="mt-4 text-sm text-gray-500">
+                        Products that currently have no available stock.
+                    </p>
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-xl bg-yellow-100 p-3">
+                            <AlertTriangle
+                                size={20}
+                                className="text-yellow-600"
+                            />
+                        </div>
+
+                        <div>
+                            <p className="text-sm text-gray-500">
+                                Low Stock
+                            </p>
+
+                            <p className="text-2xl font-bold text-gray-800">
+                                {lowStock}
+                            </p>
+                        </div>
+                    </div>
+
+                    <p className="mt-4 text-sm text-gray-500">
+                        Products with 5 or fewer items remaining.
+                    </p>
+                </div>
+
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="rounded-xl bg-green-100 p-3">
+                            <Package
+                                size={20}
+                                className="text-green-600"
+                            />
+                        </div>
+
+                        <div>
+                            <p className="text-sm text-gray-500">
+                                In Stock
+                            </p>
+
+                            <p className="text-2xl font-bold text-gray-800">
+                                {totalProducts - outOfStock}
+                            </p>
+                        </div>
+                    </div>
+
+                    <p className="mt-4 text-sm text-gray-500">
+                        Products currently available for customers.
+                    </p>
+                </div>
+            </div>
+
+            {/* Lower section */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+                {/* Top products */}
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="mb-5">
+                        <h2 className="text-lg font-semibold text-gray-800">
+                            Stock Overview
+                        </h2>
+
+                        <p className="text-sm text-gray-500">
+                            Products with the highest available stock.
+                        </p>
+                    </div>
+
+                    {topStockProducts.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-gray-400">
+                            No products available.
+                        </p>
+                    ) : (
+                        <div className="space-y-4">
+                            {topStockProducts.map((product) => (
+                                <div
+                                    key={product.id}
+                                    className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="truncate font-medium text-gray-800">
+                                            {product.name}
+                                        </p>
+
+                                        <p className="text-xs text-gray-500">
+                                            Rs. {product.price}
+                                        </p>
+                                    </div>
+
+                                    <span className="ml-4 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                                        {product.stock} in stock
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Categories */}
+                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                    <div className="mb-5">
+                        <h2 className="text-lg font-semibold text-gray-800">
+                            Product Categories
+                        </h2>
+
+                        <p className="text-sm text-gray-500">
+                            Your most used product categories.
+                        </p>
+                    </div>
+
+                    {categories.length === 0 ? (
+                        <p className="py-8 text-center text-sm text-gray-400">
+                            No category data available.
+                        </p>
+                    ) : (
+                        <div className="space-y-4">
+                            {categories.map(([name, count]) => {
+                                const percentage =
+                                    totalProducts > 0
+                                        ? Math.round(
+                                              (count /
+                                                  totalProducts) *
+                                                  100
+                                          )
+                                        : 0;
+
+                                return (
+                                    <div key={name}>
+                                        <div className="mb-2 flex justify-between text-sm">
+                                            <span className="font-medium text-gray-700">
+                                                {name}
+                                            </span>
+
+                                            <span className="text-gray-500">
+                                                {count} product
+                                                {count !== 1
+                                                    ? "s"
+                                                    : ""}
+                                            </span>
+                                        </div>
+
+                                        <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                                            <div
+                                                className="h-full rounded-full bg-green-600"
+                                                style={{
+                                                    width: `${percentage}%`,
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Future analytics */}
+            <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-6">
+                <div className="flex items-start gap-4">
+                    <div className="rounded-xl bg-gray-100 p-3">
+                        <TrendingUp
+                            size={22}
+                            className="text-gray-500"
+                        />
+                    </div>
+
+                    <div>
+                        <h2 className="font-semibold text-gray-800">
+                            Sales Analytics
+                        </h2>
+
+                        <p className="mt-1 text-sm text-gray-500">
+                            Sales, revenue, order trends, and top-selling
+                            products will appear here once order and payment
+                            data is connected to the analytics dashboard.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

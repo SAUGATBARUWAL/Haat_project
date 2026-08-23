@@ -34,4 +34,7 @@ urlpatterns = [
     path('password-reset/confirm/', views.PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
 
     path('sellers/<int:pk>/', views.SellerPublicProfileView.as_view(), name='seller-public-profile'),
+
+    #
+    path("profile-picture/",views.ProfilePictureView.as_view(),name="profile-picture",),
 ]

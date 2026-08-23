@@ -19,11 +19,14 @@ export function CartProvider({ children }) {
       setLoaded(true);
       return Promise.resolve();
     }
+
+    setLoaded(false);
+
     return api
       .get("/cart/")
       .then((res) => setCart(res.data))
       .catch(() => {
-        // Leave existing cart state as-is on a transient failure
+        // Keep existing cart on transient failure
       })
       .finally(() => setLoaded(true));
   }, [isCustomer]);

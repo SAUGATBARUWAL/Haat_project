@@ -7,8 +7,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 from .models import Product, Category
-from .serializers import CategorySerializer, ProductSerializer, ProductPriceUpdateSerializer
-from users.permissions import IsVerifiedSeller
+from .serializers import CategorySerializer, ProductSerializer, ProductPriceUpdateSerializer,ProductStatusUpdateSerializer
+from users.permissions import IsVerifiedSeller, IsAdmin
 
 
 
@@ -104,4 +104,24 @@ class ProductDeleteView(DestroyAPIView):
 
     def get_queryset(self):
         return Product.objects.filter(seller=self.request.user.seller_profile)
+
+class AdminProductListView(ListAPIView):
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+    def get_queryset(self):
+        return Product.objects.all()
+
+
+class AdminProductStatusUpdateView(UpdateAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductStatusUpdateSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+    http_method_names = ["patch"]
+
+
+class AdminProductDeleteView(DestroyAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
 

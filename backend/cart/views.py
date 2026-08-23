@@ -25,18 +25,42 @@ class CartView(RetrieveAPIView):
 
 class CartItemAddView(APIView):
     """
-    POST {product, quantity} — adds a new item, or if the product is
-    already in the cart, increments its quantity instead of erroring
-    on the unique_together constraint.
+    POST {product, quantity} — adds a product to the cart.
+    If the product already exists, increases its quantity.
     """
     permission_classes = [IsAuthenticated, IsCustomer]
 
     def post(self, request):
         cart = get_or_create_cart(request.user)
-        product_id = request.data.get("product")
-        quantity = int(request.data.get("quantity", 1))
 
-        existing = CartItem.objects.filter(cart=cart, product_id=product_id).first()
+        product_id = request.data.get("product")
+        quantity = request.data.get("quantity", 1)
+
+        if not product_id:
+            return Response(
+                {"product": "This field is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            quantity = int(quantity)
+        except (TypeError, ValueError):
+            return Response(
+                {"quantity": "Quantity must be a valid integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if quantity < 1:
+            return Response(
+                {"quantity": "Quantity must be at least 1."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        existing = CartItem.objects.filter(
+            cart=cart,
+            product_id=product_id
+        ).first()
+
         if existing:
             serializer = CartItemSerializer(
                 existing,
@@ -44,16 +68,24 @@ class CartItemAddView(APIView):
                 partial=True,
                 context={"request": request},
             )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
         else:
             serializer = CartItemSerializer(
-                data={"product": product_id, "quantity": quantity},
+                data={
+                    "product": product_id,
+                    "quantity": quantity,
+                },
                 context={"request": request},
             )
+            serializer.is_valid(raise_exception=True)
+            serializer.save(cart=cart)
 
-        serializer.is_valid(raise_exception=True)
-        serializer.save(cart=cart) if not existing else serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK,
+        )
 
 class CartItemUpdateView(UpdateAPIView):
     """PATCH quantity on a specific cart item — e.g. from a quantity stepper in the UI."""

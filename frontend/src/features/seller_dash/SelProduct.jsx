@@ -1,76 +1,355 @@
 import { useState, useEffect } from "react";
-import api from "../../utils/api"; // adjust path to match your project
-import SelCard from "../../components/card/SelCard"; // adjust path if placed elsewhere
+import { Package, PlusCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
-/**
- * "My Products" — lists only the products belonging to the logged-in
- * seller. Backed by GET /products/mine/, which is already scoped
- * server-side to `seller=request.user.seller_profile` (see
- * MyProductListView) — so there's no risk of another seller's products
- * leaking through even if this component had a bug.
- */
+import api from "../../utils/api";
+import SelCard from "../../components/card/SelCard";
+
 export default function SelProduct() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+    const navigate = useNavigate();
 
-  useEffect(() => {
-    let cancelled = false;
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-    api
-      .get("/products/mine/")
-      .then((res) => {
-        if (!cancelled) setProducts(res.data);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setError(err.response?.data?.detail || "Could not load your products.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    useEffect(() => {
+        let cancelled = false;
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+        api
+            .get("/products/mine/")
+            .then((res) => {
+                if (!cancelled) {
+                    setProducts(res.data);
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setError(
+                        err.response?.data?.detail ||
+                        "Could not load your products."
+                    );
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
 
-  function handleUpdated(updated) {
-    setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-  }
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
-  function handleDeleted(id) {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-  }
+    function handleUpdated(updated) {
+        setProducts((prev) =>
+            prev.map((p) =>
+                p.id === updated.id ? updated : p
+            )
+        );
+    }
 
-  if (loading) {
-    return <p className="text-sm text-gray-500 p-6">Loading your products...</p>;
-  }
+    function handleDeleted(id) {
+        setProducts((prev) =>
+            prev.filter((p) => p.id !== id)
+        );
+    }
 
-  if (error) {
-    return <p className="text-sm text-red-600 p-6">{error}</p>;
-  }
+    /* ---------------- Loading ---------------- */
 
-  if (products.length === 0) {
+    if (loading) {
+        return (
+            <div className="space-y-6">
+
+                {/* Header skeleton */}
+                <div>
+                    <div className="h-8 w-40 animate-pulse rounded-lg bg-gray-200" />
+                    <div className="mt-2 h-4 w-64 animate-pulse rounded bg-gray-100" />
+                </div>
+
+                {/* Product skeletons */}
+                <div className="space-y-4">
+                    {[1, 2, 3].map((item) => (
+                        <div
+                            key={item}
+                            className="
+                                flex
+                                animate-pulse
+                                gap-4
+                                rounded-2xl
+                                border
+                                border-gray-100
+                                bg-white
+                                p-5
+                                shadow-sm
+                            "
+                        >
+                            <div className="h-24 w-24 rounded-xl bg-gray-200" />
+
+                            <div className="flex-1 space-y-3">
+                                <div className="h-5 w-48 rounded bg-gray-200" />
+                                <div className="h-4 w-72 rounded bg-gray-100" />
+                                <div className="h-4 w-32 rounded bg-gray-100" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    /* ---------------- Error ---------------- */
+
+    if (error) {
+        return (
+            <div className="flex min-h-[400px] items-center justify-center">
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-8 py-6 text-center">
+
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+                        <Package
+                            size={24}
+                            className="text-red-600"
+                        />
+                    </div>
+
+                    <p className="mt-4 text-sm font-medium text-red-600">
+                        {error}
+                    </p>
+
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="
+                            mt-4
+                            rounded-lg
+                            bg-red-600
+                            px-4
+                            py-2
+                            text-sm
+                            font-medium
+                            text-white
+                            transition
+                            hover:bg-red-700
+                        "
+                    >
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    /* ---------------- Empty ---------------- */
+
+    if (products.length === 0) {
+        return (
+            <div className="space-y-7">
+
+                {/* Header */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">
+                            My Products
+                        </h1>
+
+                        <p className="mt-1 text-sm text-gray-500">
+                            Manage the products available in your store.
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={() =>
+                            navigate("/seller/products/add")
+                        }
+                        className="
+                            inline-flex
+                            w-fit
+                            items-center
+                            gap-2
+                            rounded-xl
+                            bg-green-600
+                            px-4
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            text-white
+                            shadow-sm
+                            transition
+                            hover:bg-green-700
+                        "
+                    >
+                        <PlusCircle size={18} />
+                        Add Product
+                    </button>
+                </div>
+
+                {/* Empty state */}
+                <div className="
+                    flex
+                    min-h-[400px]
+                    flex-col
+                    items-center
+                    justify-center
+                    rounded-2xl
+                    border
+                    border-gray-100
+                    bg-white
+                    p-8
+                    text-center
+                    shadow-sm
+                ">
+
+                    <div className="
+                        flex
+                        h-16
+                        w-16
+                        items-center
+                        justify-center
+                        rounded-2xl
+                        bg-green-50
+                        text-green-600
+                    ">
+                        <Package size={30} />
+                    </div>
+
+                    <h2 className="mt-5 text-lg font-semibold text-gray-900">
+                        No products yet
+                    </h2>
+
+                    <p className="mt-2 max-w-sm text-sm text-gray-500">
+                        You haven't added any products to your store.
+                        Start adding products to begin selling.
+                    </p>
+
+                    <button
+                        onClick={() =>
+                            navigate("/seller/products/add")
+                        }
+                        className="
+                            mt-5
+                            inline-flex
+                            items-center
+                            gap-2
+                            rounded-lg
+                            bg-green-600
+                            px-5
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            text-white
+                            transition
+                            hover:bg-green-700
+                        "
+                    >
+                        <PlusCircle size={17} />
+                        Add Your First Product
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    /* ---------------- Products ---------------- */
+
     return (
-      <p className="text-sm text-gray-500 p-6">
-        You haven't added any products yet.
-      </p>
-    );
-  }
+        <div className="space-y-7">
 
-  return (
-    <div className="max-w-3xl mx-auto p-6 space-y-4">
-      <h2 className="text-lg font-medium">My Products</h2>
-      {products.map((product) => (
-        <SelCard
-          key={product.id}
-          product={product}
-          onUpdated={handleUpdated}
-          onDeleted={handleDeleted}
-        />
-      ))}
-    </div>
-  );
+            {/* Header */}
+            <div className="
+                flex
+                flex-col
+                gap-4
+                sm:flex-row
+                sm:items-end
+                sm:justify-between
+            ">
+
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900">
+                        My Products
+                    </h1>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                        Manage the products available in your store.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+
+                    {/* Product count */}
+                    <div className="
+                        inline-flex
+                        items-center
+                        gap-2
+                        rounded-xl
+                        bg-green-50
+                        px-4
+                        py-2.5
+                        text-sm
+                        font-medium
+                        text-green-700
+                    ">
+                        <Package size={17} />
+
+                        {products.length}{" "}
+                        {products.length === 1
+                            ? "Product"
+                            : "Products"}
+                    </div>
+
+                    {/* Add product */}
+                    <button
+                        onClick={() =>
+                            navigate("/seller/products/add")
+                        }
+                        className="
+                            inline-flex
+                            items-center
+                            gap-2
+                            rounded-xl
+                            bg-green-600
+                            px-4
+                            py-2.5
+                            text-sm
+                            font-semibold
+                            text-white
+                            shadow-sm
+                            transition
+                            hover:bg-green-700
+                        "
+                    >
+                        <PlusCircle size={18} />
+                        Add Product
+                    </button>
+                </div>
+            </div>
+
+            {/* Product list */}
+            <div className="space-y-4">
+
+                {products.map((product) => (
+                    <div
+                        key={product.id}
+                        className="
+                            overflow-hidden
+                            rounded-2xl
+                            border
+                            border-gray-100
+                            bg-white
+                            shadow-sm
+                            transition
+                            hover:shadow-md
+                        "
+                    >
+                        <SelCard
+                            product={product}
+                            onUpdated={handleUpdated}
+                            onDeleted={handleDeleted}
+                        />
+                    </div>
+                ))}
+
+            </div>
+        </div>
+    );
 }

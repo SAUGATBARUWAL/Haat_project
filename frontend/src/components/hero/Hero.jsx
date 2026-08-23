@@ -11,14 +11,23 @@ import { heroSlides } from "./heroData";
 
 export default function Hero() {
     return (
-        <div className="rounded-2xl overflow-hidden">
+        <div className="overflow-hidden rounded-2xl">
             <Swiper
                 className="hero-swiper"
                 navigation
-                pagination={{ clickable: true }}
-                autoplay={{ delay: 4000 }}
-                loop
-                modules={[Navigation, Pagination, Autoplay]}
+                pagination={{
+                    clickable: true,
+                }}
+                autoplay={{
+                    delay: 4000,
+                    disableOnInteraction: false,
+                }}
+                loop={true}
+                modules={[
+                    Navigation,
+                    Pagination,
+                    Autoplay,
+                ]}
             >
                 {heroSlides.map((slide) => (
                     <SwiperSlide key={slide.id}>

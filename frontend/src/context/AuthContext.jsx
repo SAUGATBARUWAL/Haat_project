@@ -4,7 +4,13 @@ import api from "../utils/api";
 
 const AuthContext = createContext();
 
-const PUBLIC_ROUTES = ["/", "/login", "/signup"];
+const PUBLIC_ROUTES = [
+    "/",
+    "/login",
+    "/signup",
+    "/signup/customer",
+    "/signup/seller",
+];
 
 export function AuthProvider({ children }) {
     const [profile, setProfile] = useState(null);
@@ -16,14 +22,23 @@ export function AuthProvider({ children }) {
 
     const fetchProfile = async () => {
         try {
-            const response = await api.get("/profile/");
+            const response = await api.get("/users/profile/");
+
             setProfile(response.data);
             setLoggedIn(true);
+
             return response.data;
         } catch (error) {
             setProfile(null);
             setLoggedIn(false);
 
+            /*
+             * Don't redirect from public pages.
+             *
+             * This is important because AuthProvider runs when
+             * the application starts, even when the visitor isn't
+             * logged in.
+             */
             if (!PUBLIC_ROUTES.includes(location.pathname)) {
                 navigate("/login", { replace: true });
             }
@@ -36,12 +51,14 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         fetchProfile();
+
+        // We intentionally only run this once when AuthProvider mounts.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const logout = async () => {
         try {
-            await api.post("/logout/");
+            await api.post("/users/logout/");
         } catch (error) {
             console.error("Logout failed:", error);
         } finally {
