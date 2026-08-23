@@ -1,5 +1,6 @@
 #products/serializers.py
 from rest_framework import serializers
+from django.db.models import Avg
 from .models import Product, Category, ProductImage, ProductSize
 from core.imagekit import upload_image
 from users.models import SellerProfile
@@ -36,6 +37,8 @@ class ProductSizeSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
     # Read-only nested output
     images = ProductImageSerializer(many=True, read_only=True)
     sizes = ProductSizeSerializer(many=True, read_only=True)
@@ -59,16 +62,32 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'description', 'price', 'stock',
+            'id', 'name', 'description', 'price','discount_percentage','discounted_price', 'stock',
             'categories', 'images', 'uploaded_images', 'image_labels',
             'sizes', 'size_labels', 'is_active','seller', 'is_active', 
-            'created_at', 'updated_at',
+            'created_at', 'updated_at','average_rating','review_count',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'discounted_price', 'average_rating','review_count',]
+
+    def get_average_rating(self, obj):
+        result = obj.reviews.aggregate(
+            average=Avg("rating")
+        )
+        return round(result["average"], 1) if result["average"] else 0
+
+    def get_review_count(self, obj):
+        return obj.reviews.count()
 
     def validate_price(self, value):
         if value <= 0:
             raise serializers.ValidationError("Price must be greater than zero.")
+        return value
+
+    def validate_discount_percentage(self, value):
+        if value < 0 or value > 100:
+            raise serializers.ValidationError(
+                "Discount percentage must be between 0 and 100."
+                )
         return value
 
     def validate_uploaded_images(self, value):
