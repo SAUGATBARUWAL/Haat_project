@@ -24,12 +24,11 @@
     color: #a89f9f;
 }
 
-/* Pagination container */
+/* Pagination */
 .hero-swiper .swiper-pagination {
     bottom: 50px !important;
 }
 
-/* Pagination dots */
 .hero-swiper .swiper-pagination-bullet {
     background: white;
     opacity: 0.7;
@@ -38,4 +37,16 @@
 .hero-swiper .swiper-pagination-bullet-active {
     background: #fff;
     opacity: 1;
+}
+
+/* Mobile */
+@media (max-width: 767px) {
+    .hero-swiper .swiper-button-prev,
+    .hero-swiper .swiper-button-next {
+        display: none;
+    }
+
+    .hero-swiper .swiper-pagination {
+        bottom: 20px !important;
+    }
 }

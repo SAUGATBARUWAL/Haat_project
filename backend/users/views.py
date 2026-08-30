@@ -21,6 +21,7 @@ from .serializers import (
     SellerRegisterSerializer,
     CustomTokenObtainPairSerializer, 
     UserProfileSerializer,
+    UserProfileUpdateSerializer,
     SellerProfileSerializer,
     SellerPublicProfileSerializer,
     CustomerProfileSerializer,
@@ -29,6 +30,8 @@ from .serializers import (
     ChangePasswordSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    SellerProfilePictureSerializer, 
+    
 )
 
 
@@ -150,6 +153,57 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
         return response
 
+class ProfilePictureView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+
+        user = request.user
+
+        if user.role == "customer":
+
+            profile = user.customer_profile
+
+            serializer = CustomerProfilePictureSerializer(
+                profile,
+                data=request.data,
+                partial=True,
+            )
+
+        elif user.role == "seller":
+
+            profile = user.seller_profile
+
+            serializer = SellerProfilePictureSerializer(
+                profile,
+                data=request.data,
+                partial=True,
+            )
+
+        else:
+            return Response(
+                {
+                    "detail":
+                    "Profile picture update is not available for this account."
+                },               
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer.is_valid(raise_exception=True)
+
+        serializer.save()
+
+        return Response(
+            {
+                "detail":
+                "Profile picture updated successfully.",
+                "profile_picture":
+                serializer.instance.profile_picture,
+            },
+            status=status.HTTP_200_OK,
+        )
+
 
 # Custom refresh view — reads the refresh token from the cookie
 # (not from the request body) and re-sets a fresh access token cookie.
@@ -160,40 +214,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 # underlying serializer validation saw no `refresh` field -> 400.
 # Now we build the serializer directly with a plain dict we control.
 class CustomTokenRefreshView(TokenRefreshView):
-    '''def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get(settings.AUTH_COOKIE_REFRESH)
-        if not refresh_token:
-            raise AuthenticationFailed("Refresh token not found in cookies.")
-
-        serializer = self.get_serializer(data={"refresh": refresh_token})
-        serializer.is_valid(raise_exception=True)
-
-        access = serializer.validated_data.get("access")
-
-        response = Response({"message": "Token refreshed."}, status=status.HTTP_200_OK)
-
-        response.set_cookie(
-            key=settings.AUTH_COOKIE_ACCESS,
-            value=access,
-            httponly=True,
-            secure=settings.AUTH_COOKIE_SECURE,
-            samesite=settings.AUTH_COOKIE_SAMESITE,
-        )
-
-        # If ROTATE_REFRESH_TOKENS is enabled, a new refresh token is
-        # returned too — re-set that cookie, or the old (now possibly
-        # blacklisted) one stays in the browser and the *next* refresh fails.
-        new_refresh = serializer.validated_data.get("refresh")
-        if new_refresh:
-            response.set_cookie(
-                key=settings.AUTH_COOKIE_REFRESH,
-                value=new_refresh,
-                httponly=True,
-                secure=settings.AUTH_COOKIE_SECURE,
-                samesite=settings.AUTH_COOKIE_SAMESITE,
-            )
-
-        return response'''
+    
 
     def post(self, request, *args, **kwargs):
         print("=== COOKIES RECEIVED ===", request.COOKIES)
@@ -264,7 +285,11 @@ class ProfileView(APIView):
         data = UserProfileSerializer(user).data
 
         if user.role == "seller":
-            seller_profile = getattr(user, "seller_profile", None)
+            seller_profile = getattr(
+                user,
+                "seller_profile",
+                None
+            )
 
             if seller_profile:
                 data["seller_profile"] = SellerProfileSerializer(
@@ -272,15 +297,65 @@ class ProfileView(APIView):
                 ).data
 
         elif user.role == "customer":
-            customer_profile = getattr(user, "customer_profile", None)
+            customer_profile = getattr(
+                user,
+                "customer_profile",
+                None
+            )
 
             if customer_profile:
                 data["customer_profile"] = CustomerProfileSerializer(
                     customer_profile
                 ).data
 
-        return Response(data, status=status.HTTP_200_OK)
+        return Response(
+            data,
+            status=status.HTTP_200_OK
+        )
 
+    def patch(self, request):
+        user = request.user
+
+        serializer = UserProfileUpdateSerializer(
+            user,
+            data=request.data,
+            partial=True
+        )
+
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        # Return updated profile
+        data = UserProfileSerializer(user).data
+
+        if user.role == "seller":
+            seller_profile = getattr(
+                user,
+                "seller_profile",
+                None
+            )
+
+            if seller_profile:
+                data["seller_profile"] = SellerProfileSerializer(
+                    seller_profile
+                ).data
+
+        elif user.role == "customer":
+            customer_profile = getattr(
+                user,
+                "customer_profile",
+                None
+            )
+
+            if customer_profile:
+                data["customer_profile"] = CustomerProfileSerializer(
+                    customer_profile
+                ).data
+
+        return Response(
+            data,
+            status=status.HTTP_200_OK
+        )
 
 class BanUserView(APIView):
     permission_classes = [IsAdmin]

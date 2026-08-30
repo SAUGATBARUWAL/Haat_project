@@ -18,11 +18,17 @@ from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
+    # Django admin
     path('admin/', admin.site.urls),
 
-    path('', include('users.urls')),
-    path('products/', include('products.urls')),
-   # path('cart/', include('cart.urls')),
-   # path('orders/', include('orders.urls')),
-   # path('payments/', include('payments.urls')),
+    # API
+    path('api/users/', include('users.urls')),
+    path('api/products/', include('products.urls')),
+    path('api/wishlist/', include('wishlist.urls')),
+    path('api/cart/', include('cart.urls')),
+    path('api/orders/', include('orders.urls')),
+    path('api/riders/', include('riders.urls')),
+
+    # Payments later
+    # path('api/payments/', include('payments.urls')),
 ]

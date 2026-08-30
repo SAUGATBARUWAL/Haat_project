@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+
 import GreenButton from "../../components/buttons/GreenButton";
+import PasswordInput from "../../components/inputs/PasswordInput";
 import AuthLayout from "../../layouts/AuthLayout";
 import api from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
@@ -26,24 +28,34 @@ export default function Login() {
 
     const handleLogin = async (e) => {
         e.preventDefault();
+
         setLoading(true);
         setError("");
 
         try {
-            // Login request
-            const response = await api.post("/login/", form);
+            const response = await api.post("/users/login/", form);
             const data = response.data;
 
-            // Update authentication state
-            await fetchProfile();
+            const profile = await fetchProfile();
 
-            // Redirect based on role
-            if (data.role === "seller") {
-                if (data.verification_status === "pending") {
+            const role = profile?.role || data?.role;
+
+            if (role === "seller") {
+                const verificationStatus =
+                    data?.verification_status ||
+                    profile?.seller_profile?.verification_status;
+
+                if (verificationStatus === "pending") {
                     navigate("/seller/pending-verification");
                 } else {
                     navigate("/seller/dashboard");
                 }
+            } else if (role === "customer") {
+                navigate("/");
+            } else if (role === "admin") {
+                navigate("/admin");
+            } else if (role === "rider") {
+                navigate("/rider");
             } else {
                 navigate("/");
             }
@@ -61,6 +73,8 @@ export default function Login() {
     return (
         <AuthLayout>
             <div className="w-full max-w-md rounded-2xl bg-white/80 backdrop-blur-md shadow-2xl shadow-gray-700/40 p-8">
+
+                {/* Logo / title */}
                 <h2 className="text-3xl font-bold text-center text-green-700">
                     HAAT
                 </h2>
@@ -69,6 +83,7 @@ export default function Login() {
                     Enter your login credentials
                 </p>
 
+                {/* Error */}
                 {error && (
                     <div className="mt-4 rounded-lg bg-red-100 p-3 text-center text-red-600">
                         {error}
@@ -76,10 +91,13 @@ export default function Login() {
                 )}
 
                 <form onSubmit={handleLogin} className="mt-6 space-y-4">
+
+                    {/* Username */}
                     <div>
                         <label className="mb-1 block text-sm font-medium">
                             Username
                         </label>
+
                         <input
                             type="text"
                             name="username"
@@ -87,36 +105,57 @@ export default function Login() {
                             onChange={handleChange}
                             placeholder="Enter username"
                             required
-                            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                            autoComplete="username"
+                            disabled={loading}
+                            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
                         />
                     </div>
 
+                    {/* Password */}
                     <div>
                         <label className="mb-1 block text-sm font-medium">
                             Password
                         </label>
-                        <input
-                            type="password"
+
+                        <PasswordInput
                             name="password"
                             value={form.password}
                             onChange={handleChange}
                             placeholder="Enter password"
                             required
-                            className="w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
+                            autoComplete="current-password"
+                            disabled={loading}
                         />
                     </div>
 
-                    <GreenButton type="submit" loading={loading}>
+                    {/* Forgot Password */}
+                    <div className="flex justify-end -mt-1">
+                        <button
+                            type="button"
+                            onClick={() => navigate("/forgot-password")}
+                            disabled={loading}
+                            className="text-sm font-medium text-green-600 hover:text-green-700 hover:underline disabled:opacity-50"
+                        >
+                            Forgot Password?
+                        </button>
+                    </div>
+
+                    {/* Login button */}
+                    <GreenButton
+                        type="submit"
+                        loading={loading}
+                    >
                         Login
                     </GreenButton>
                 </form>
 
+                {/* Signup */}
                 <p className="mt-6 text-center text-sm text-gray-600">
                     Not registered?{" "}
                     <button
                         type="button"
                         onClick={() => navigate("/signup")}
-                        className="font-medium text-blue-600 hover:underline"
+                        className="font-medium text-green-600 hover:underline"
                     >
                         Create an account
                     </button>

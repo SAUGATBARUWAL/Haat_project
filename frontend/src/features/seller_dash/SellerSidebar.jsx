@@ -7,6 +7,8 @@ import {
     ShoppingCart,
     BarChart3,
     User,
+    ChevronRight,
+    Store,
 } from "lucide-react";
 
 export default function SellerSidebar() {
@@ -23,83 +25,269 @@ export default function SellerSidebar() {
             ? `${API_BASE_URL}${profilePicture}`
             : profilePicture;
 
+    const navigationItems = [
+        {
+            name: "Dashboard",
+            path: "/seller/dashboard",
+            icon: LayoutDashboard,
+            end: true,
+        },
+        {
+            name: "My Products",
+            path: "/seller/products",
+            icon: Package,
+        },
+        {
+            name: "Add Product",
+            path: "/seller/products/add",
+            icon: PlusCircle,
+        },
+        {
+            name: "Orders",
+            path: "/seller/orders",
+            icon: ShoppingCart,
+        },
+        {
+            name: "Analytics",
+            path: "/seller/analytics",
+            icon: BarChart3,
+        },
+    ];
+
     return (
-        <aside className="w-72 min-h-screen bg-green-700 shadow-lg mx-0">
+        <aside className="sticky top-0 flex h-screen w-72 flex-col bg-green-700 text-white shadow-xl">
 
-            {/* Seller Info */}
+            {/* =========================
+                Brand
+            ========================= */}
+            <div className="flex items-center gap-3 border-b border-green-600 px-6 py-5">
 
-            <div className="flex flex-col items-center border-b-2 border-b-green-100 pb-6 mt-4 ">
-
-                {profileImage ? (
-                    <img
-                        src={profileImage}
-                        alt="Seller"
-                        className="h-24 w-24 rounded-full object-cover border-4 border-white"
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
+                    <Store
+                        size={21}
+                        className="text-green-700"
                     />
-                ) : (
-                    <div className="h-24 w-24 rounded-full flex items-center justify-center">
-                        <User
-                            size={40}
-                            className="text-white"
-                        />
-                    </div>
-                )}
+                </div>
 
-                <h2 className="mt-4 text-xl font-semibold text-white">
-                    {profile?.seller_profile?.business_name}
-                </h2>
+                <div>
+                    <h1 className="text-xl font-bold tracking-wide">
+                        HAAT
+                    </h1>
 
-                <p className="text-white">
-                    {profile?.username}
-                </p>
+                    <p className="text-xs text-green-100">
+                        Seller Center
+                    </p>
+                </div>
+
             </div>
 
-            {/* Navigation */}
 
-            <nav className="mt-8 space-y-2 text-white">
+            {/* =========================
+                Seller Profile
+            ========================= */}
+            <div className="px-5 pt-6">
 
-                <NavLink
-                    to="/seller/dashboard"
-                    end
-                    className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-green-100 hover:text-green-400"
-                >
-                    <LayoutDashboard size={20} />
-                    Dashboard
-                </NavLink>
+                <div className="rounded-2xl border border-green-600 bg-green-600/60 p-4">
 
-                <NavLink
-                    to="/seller/products"
-                    className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-green-100 hover:text-green-400"
-                >
-                    <Package size={20} />
-                    My Products
-                </NavLink>
+                    <div className="flex items-center gap-3">
 
-                <NavLink
-                    to="/seller/products/add"
-                    className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-green-100 hover:text-green-400"
-                >
-                    <PlusCircle size={20} />
-                    Add Product
-                </NavLink>
+                        {/* Profile image */}
+                        <div className="relative shrink-0">
 
-                <NavLink
-                    to="/seller/orders"
-                    className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-green-100 hover:text-green-400"
-                >
-                    <ShoppingCart size={20} />
-                    Orders
-                </NavLink>
+                            {profileImage ? (
+                                <img
+                                    src={profileImage}
+                                    alt="Seller"
+                                    className="
+                                        h-14
+                                        w-14
+                                        rounded-full
+                                        border-2
+                                        border-white
+                                        object-cover
+                                        shadow-md
+                                    "
+                                />
+                            ) : (
+                                <div
+                                    className="
+                                        flex
+                                        h-14
+                                        w-14
+                                        items-center
+                                        justify-center
+                                        rounded-full
+                                        bg-green-100
+                                        text-green-700
+                                        shadow-md
+                                    "
+                                >
+                                    <User size={27} />
+                                </div>
+                            )}
 
-                <NavLink
-                    to="/seller/analytics"
-                    className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-green-100 hover:text-green-400"
-                >
-                    <BarChart3 size={20} />
-                    Analytics
-                </NavLink>
+                            {/* Online indicator */}
+                            <span
+                                className="
+                                    absolute
+                                    bottom-0
+                                    right-0
+                                    h-3.5
+                                    w-3.5
+                                    rounded-full
+                                    border-2
+                                    border-green-600
+                                    bg-green-300
+                                "
+                            />
+
+                        </div>
+
+
+                        {/* Seller information */}
+                        <div className="min-w-0">
+
+                            <p className="text-xs font-medium text-green-100">
+                                Seller Account
+                            </p>
+
+                            <h2 className="mt-0.5 truncate text-sm font-semibold text-white">
+                                {profile?.seller_profile?.business_name ||
+                                    "Your Business"}
+                            </h2>
+
+                            <p className="truncate text-xs text-green-100">
+                                @{profile?.username || "seller"}
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            {/* =========================
+                Navigation Title
+            ========================= */}
+            <div className="px-6 pb-2 pt-7">
+
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-green-200">
+                    Management
+                </p>
+
+            </div>
+
+
+            {/* =========================
+                Navigation
+            ========================= */}
+            <nav className="flex-1 space-y-1 px-4">
+
+                {navigationItems.map((item) => {
+
+                    const Icon = item.icon;
+
+                    return (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            end={item.end}
+                            className={({ isActive }) =>
+                                `
+                                group
+                                relative
+                                flex
+                                items-center
+                                justify-between
+                                rounded-xl
+                                px-4
+                                py-3
+                                text-sm
+                                font-medium
+                                transition-all
+                                duration-200
+
+                                ${
+                                    isActive
+                                        ? "bg-white text-green-700 shadow-md"
+                                        : "text-green-50 hover:bg-green-600 hover:text-white"
+                                }
+                                `
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <div className="flex items-center gap-3">
+
+                                        <Icon
+                                            size={20}
+                                            strokeWidth={isActive ? 2.5 : 2}
+                                            className={`
+                                                transition-transform
+                                                duration-200
+                                                ${
+                                                    isActive
+                                                        ? "text-green-700"
+                                                        : "text-green-100 group-hover:scale-110"
+                                                }
+                                            `}
+                                        />
+
+                                        <span>
+                                            {item.name}
+                                        </span>
+
+                                    </div>
+
+                                    {isActive && (
+                                        <ChevronRight
+                                            size={17}
+                                            className="text-green-600"
+                                        />
+                                    )}
+
+                                </>
+                            )}
+                        </NavLink>
+                    );
+                })}
 
             </nav>
+
+
+            {/* =========================
+                Bottom Section
+            ========================= */}
+            <div className="border-t border-green-600 p-4">
+
+                <div className="rounded-xl bg-green-600/50 px-4 py-3">
+
+                    <div className="flex items-center gap-3">
+
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-500">
+                            <User size={18} />
+                        </div>
+
+                        <div className="min-w-0">
+
+                            <p className="text-xs font-medium text-green-100">
+                                Logged in as
+                            </p>
+
+                            <p className="truncate text-sm font-semibold text-white">
+                                {profile?.username || "Seller"}
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
 
         </aside>
     );

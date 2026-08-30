@@ -77,15 +77,14 @@ class SellerRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "username",
-            "email",
-            "password",
-            "phone",
-            "business_name",
-            "pan_number",
-            "business_address",
-            "profile_picture",
-            "business_document",
+            'business_name',
+            'pan_number',
+            'business_address',
+            'profile_picture',
+            'business_document',
+            'verification_status',
+            'created_at',
+            'phone',
         ]
         extra_kwargs = {
             "email": {"required": True},
@@ -225,6 +224,46 @@ class CustomerProfilePictureSerializer(serializers.ModelSerializer):
 
         return instance
 
+class SellerProfilePictureSerializer(serializers.ModelSerializer):
+    """
+    Used to change a seller's profile picture independently.
+    """
+
+    profile_picture = serializers.ImageField(
+        required=True,
+        allow_null=False,
+        write_only=True,
+    )
+
+    class Meta:
+        model = SellerProfile
+        fields = ["profile_picture"]
+
+    def update(self, instance, validated_data):
+        picture = validated_data.pop("profile_picture")
+
+        picture_url = upload_image(
+            picture,
+            picture.name,
+            folder=f"/users/profile-pictures/{instance.user.id}"
+        )
+
+        if not picture_url:
+            raise serializers.ValidationError(
+                {
+                    "profile_picture":
+                    "Failed to upload image. Please try again."
+                }
+            )
+
+        instance.profile_picture = picture_url
+
+        instance.save(
+            update_fields=["profile_picture"]
+        )
+
+        return instance
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """
@@ -252,37 +291,143 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
+class CustomerProfileSerializer(serializers.ModelSerializer):
+    """Used to display the logged-in customer's profile."""
+
+    phone = serializers.CharField(
+        source="user.phone",
+        read_only=True
+    )
+
+    class Meta:
+        model = CustomerProfile
+        fields = [
+            'phone',
+            'address',
+            'profile_picture'
+        ]
+
 class UserProfileSerializer(serializers.ModelSerializer):
     """Used to display the logged-in user's own profile."""
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'phone', 'role', 'created_at']
-
+        fields = [
+            'id',
+            'username',
+            'email',
+            'phone',
+            'role',
+            'created_at'
+        ]
 
 class SellerProfileSerializer(serializers.ModelSerializer):
-    phone = serializers.CharField(source="user.phone", read_only=True)
+    phone = serializers.CharField(
+        source="user.phone",
+        read_only=True
+    )
+
     class Meta:
         model = SellerProfile
         fields = [
             'business_name',
-            'pan_number',
             'business_address',
             'profile_picture',
-            'business_document',
             'verification_status',
             'created_at',
             'phone',
         ]
 
 
-class CustomerProfileSerializer(serializers.ModelSerializer):
-    """Read-only display of the customer's full profile, including phone."""
-    phone = serializers.CharField(source="user.phone", read_only=True)
+class UserProfileUpdateSerializer(serializers.Serializer):
+    username = serializers.CharField(required=False)
+    email = serializers.EmailField(required=False)
+    first_name = serializers.CharField(required=False, allow_blank=True)
+    last_name = serializers.CharField(required=False, allow_blank=True)
 
-    class Meta:
-        model = CustomerProfile
-        fields = ['phone', 'address', 'profile_picture']
+    phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=15
+    )
+
+    address = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True
+    )
+
+    business_name = serializers.CharField(
+        required=False,
+        allow_blank=True
+    )
+
+    business_address = serializers.CharField(
+        required=False,
+        allow_blank=True
+    )
+
+    def update(self, instance, validated_data):
+        user = instance
+
+        # -------------------------
+        # Update User fields
+        # -------------------------
+        user_fields = [
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+        ]
+
+        for field in user_fields:
+            if field in validated_data:
+                setattr(user, field, validated_data[field])
+
+        user.save()
+
+        # -------------------------
+        # Customer profile
+        # -------------------------
+        if user.role == "customer":
+            customer_profile = getattr(
+                user,
+                "customer_profile",
+                None
+            )
+
+            if customer_profile:
+                if "address" in validated_data:
+                    customer_profile.address = validated_data["address"]
+
+                customer_profile.save()
+
+        # -------------------------
+        # Seller profile
+        # -------------------------
+        elif user.role == "seller":
+            seller_profile = getattr(
+                user,
+                "seller_profile",
+                None
+            )
+
+            if seller_profile:
+                if "business_name" in validated_data:
+                    seller_profile.business_name = (
+                        validated_data["business_name"]
+                    )
+
+                if "business_address" in validated_data:
+                    seller_profile.business_address = (
+                        validated_data["business_address"]
+                    )
+
+                seller_profile.save()
+
+        return user
 
 # serializers.py
 class ChangePasswordSerializer(serializers.Serializer):

@@ -1,3 +1,4 @@
+#Models.py
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -6,6 +7,7 @@ class User(AbstractUser):
     ROLE_CHOICES= (
         ('customer', 'Customer'),
         ('seller', 'Seller'),
+        ('rider', 'Rider'),
         ('admin', 'Admin'),
     )
     # Adding additional custom fields in the database 

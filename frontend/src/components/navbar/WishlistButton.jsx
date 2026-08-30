@@ -1,17 +1,45 @@
-import React from 'react'
-import { Heart } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Heart } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useWishlist } from "../../context/WishlistContext";
 
 const WishlistButton = () => {
-  return (
-    <Link to='/wishlist' className='relative hover:text-green-200 transition text-white'> 
-        <Heart size={24}/>
-        {/* Badge */}
-        <span className="absolute -top-2 -right-2 bg-red-600 text-xs rounded-full px-1">
-            2
-        </span>
-    </Link>
-  )
-}
+  const { wishlistIds, isCustomer } = useWishlist();
 
-export default WishlistButton
+  const count = wishlistIds?.size || 0;
+
+  return (
+    <Link
+      to="/wishlist"
+      aria-label="Wishlist"
+      className="relative text-white hover:text-green-200 transition"
+    >
+      <Heart size={24} />
+
+      {isCustomer && count > 0 && (
+        <span
+          className="
+            absolute
+            -top-2
+            -right-2
+            min-w-5
+            h-5
+            px-1
+            flex
+            items-center
+            justify-center
+            bg-red-600
+            text-white
+            text-[11px]
+            font-semibold
+            rounded-full
+            leading-none
+          "
+        >
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
+  );
+};
+
+export default WishlistButton;

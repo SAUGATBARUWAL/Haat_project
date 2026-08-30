@@ -1,43 +1,26 @@
 import Navbar from "../../components/navbar/Navbar";
 import Hero from "../../components/hero/Hero";
 import Categories from "../../components/categories/Categories";
+import FeaturedProducts from "../../components/hero/FeaturedProducts";
+import Footer from "../../components/footer/Footer";
 
 export default function Home() {
-  return (
-    <>
-      <Navbar />
+    return (
+        <>
+            <Navbar />
 
-      <div className="max-w-7xl mx-auto px-6 mt-7 ">
-        <Hero />
-      </div>
+            <div className="max-w-7xl mx-auto px-6 mt-7">
+                <Hero />
+            </div>
 
-      {/* Hero */}
-      {/*
-      <section className="bg-green-50 py-20">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h1 className="text-5xl font-bold">
-            Welcome to HAAT
-          </h1>
+            {/* Categories */}
+            <Categories />
 
-          <p className="mt-4 text-gray-600 text-lg">
-            Buy from local businesses near you.
-          </p>
+            {/* Featured Products */}
+            <FeaturedProducts />
 
-          <button className="mt-8 bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700">
-            Shop Now
-          </button>
-        </div>
-      </section>
-      */}
-
-      
-
-      {/* Categories */}
-      <Categories />
-
-      {/* Featured Products */}
-
-      {/* Footer */}
-    </>
-  );
+            {/* Footer */}
+            <Footer />
+        </>
+    );
 }
