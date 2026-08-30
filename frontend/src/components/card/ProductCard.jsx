@@ -26,9 +26,36 @@ const ProductCard = ({ product }) => {
     const isWishlisted = wishlistIds.has(product.id);
     const isOutOfStock = product.stock <= 0;
 
+    // ---------------------------------------------------------
+    // Discount
+    // ---------------------------------------------------------
+
+    const discountPercentage = Number(
+        product.discount_percentage || 0
+    );
+
+    const hasDiscount = discountPercentage > 0;
+
+    const originalPrice = Number(product.price || 0);
+
+    const discountedPrice =
+        product.discounted_price !== undefined &&
+        product.discounted_price !== null
+            ? Number(product.discounted_price)
+            : originalPrice -
+              (originalPrice * discountPercentage) / 100;
+
+    // ---------------------------------------------------------
+    // Card click
+    // ---------------------------------------------------------
+
     const handleCardClick = () => {
         navigate(`/products/${product.id}`);
     };
+
+    // ---------------------------------------------------------
+    // Wishlist
+    // ---------------------------------------------------------
 
     const handleWishlistClick = (e) => {
         e.stopPropagation();
@@ -40,6 +67,10 @@ const ProductCard = ({ product }) => {
 
         toggleWishlist(product.id);
     };
+
+    // ---------------------------------------------------------
+    // Add to cart
+    // ---------------------------------------------------------
 
     const handleAddToCart = async (e) => {
         e.stopPropagation();
@@ -82,13 +113,16 @@ const ProductCard = ({ product }) => {
                 transition-all
                 duration-300
                 hover:-translate-y-1
-                
-               hover:border-green-400
-               hover:shadow-[0_0_18px_rgba(187,247,208,0.8)]
+                hover:border-green-400
+                hover:shadow-[0_0_18px_rgba(187,247,208,0.8)]
             "
         >
-            {/* Product Image */}
+            {/* =================================================
+                Product Image
+            ================================================= */}
+
             <div className="relative h-44 overflow-hidden bg-gray-100">
+
                 {imageUrl ? (
                     <img
                         src={imageUrl}
@@ -108,7 +142,34 @@ const ProductCard = ({ product }) => {
                     </div>
                 )}
 
-                {/* Wishlist */}
+                {/* =================================================
+                    Discount Sticker
+                ================================================= */}
+
+                {hasDiscount && (
+                    <div
+                        className="
+                            absolute
+                            left-3
+                            bottom-3
+                            rounded-full
+                            bg-red-600
+                            px-3
+                            py-1
+                            text-xs
+                            font-bold
+                            text-white
+                            shadow-md
+                        "
+                    >
+                        {discountPercentage}% OFF
+                    </div>
+                )}
+
+                {/* =================================================
+                    Wishlist
+                ================================================= */}
+
                 <button
                     type="button"
                     onClick={handleWishlistClick}
@@ -132,7 +193,11 @@ const ProductCard = ({ product }) => {
                 >
                     <Heart
                         size={18}
-                        fill={isWishlisted ? "#dc2626" : "none"}
+                        fill={
+                            isWishlisted
+                                ? "#dc2626"
+                                : "none"
+                        }
                         className={
                             isWishlisted
                                 ? "text-red-600"
@@ -141,7 +206,10 @@ const ProductCard = ({ product }) => {
                     />
                 </button>
 
-                {/* Stock badge */}
+                {/* =================================================
+                    Stock Badge
+                ================================================= */}
+
                 <span
                     className={`
                         absolute
@@ -159,12 +227,20 @@ const ProductCard = ({ product }) => {
                         }
                     `}
                 >
-                    {isOutOfStock ? "Out of Stock" : "In Stock"}
+                    {isOutOfStock
+                        ? "Out of Stock"
+                        : "In Stock"}
                 </span>
             </div>
 
-            {/* Product Information */}
+            {/* =================================================
+                Product Information
+            ================================================= */}
+
             <div className="p-3.5">
+
+                {/* Product Name */}
+
                 <h2
                     className="
                         line-clamp-1
@@ -178,8 +254,12 @@ const ProductCard = ({ product }) => {
                     {product.name}
                 </h2>
 
-                {/* Rating */}
+                {/* =================================================
+                    Rating
+                ================================================= */}
+
                 <div className="mt-1.5 flex items-center gap-1.5">
+
                     <Star
                         size={14}
                         fill="#FACC15"
@@ -193,18 +273,66 @@ const ProductCard = ({ product }) => {
                     <span className="text-xs text-gray-400">
                         (25)
                     </span>
+
                 </div>
 
-                {/* Price */}
-                <p className="mt-2 text-lg font-bold text-green-700">
-                    Rs. {product.price}
-                </p>
+                {/* =================================================
+                    Price
+                ================================================= */}
 
-                {/* Add to Cart */}
+                {hasDiscount ? (
+                    <div className="mt-2 flex items-center gap-2">
+
+                        {/* Original price */}
+
+                        <span
+                            className="
+                                text-sm
+                                text-gray-400
+                                line-through
+                            "
+                        >
+                            Rs.{" "}
+                            {originalPrice.toFixed(2)}
+                        </span>
+
+                        {/* Discounted price */}
+
+                        <span
+                            className="
+                                text-lg
+                                font-bold
+                                text-green-700
+                            "
+                        >
+                            Rs.{" "}
+                            {discountedPrice.toFixed(2)}
+                        </span>
+
+                    </div>
+                ) : (
+                    <p
+                        className="
+                            mt-2
+                            text-lg
+                            font-bold
+                            text-green-700
+                        "
+                    >
+                        Rs. {originalPrice.toFixed(2)}
+                    </p>
+                )}
+
+                {/* =================================================
+                    Add To Cart
+                ================================================= */}
+
                 <button
                     type="button"
                     onClick={handleAddToCart}
-                    disabled={adding || isOutOfStock}
+                    disabled={
+                        adding || isOutOfStock
+                    }
                     className="
                         mt-3
                         flex
@@ -226,8 +354,11 @@ const ProductCard = ({ product }) => {
                 >
                     <ShoppingCart size={16} />
 
-                    {adding ? "Adding..." : "Add to Cart"}
+                    {adding
+                        ? "Adding..."
+                        : "Add to Cart"}
                 </button>
+
             </div>
         </div>
     );

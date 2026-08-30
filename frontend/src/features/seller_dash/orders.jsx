@@ -3,24 +3,29 @@ import {
     ShoppingBag,
     Package,
     User,
-    ChevronDown,
+    CheckCircle2,
 } from "lucide-react";
+
 import api from "../../utils/api";
 
-const STATUS_OPTIONS = [
-    "pending",
-    "paid",
-    "shipped",
-    "delivered",
-    "cancelled",
-];
-
 const STATUS_STYLES = {
-    pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
-    paid: "bg-blue-50 text-blue-700 border-blue-200",
-    shipped: "bg-purple-50 text-purple-700 border-purple-200",
-    delivered: "bg-green-50 text-green-700 border-green-200",
-    cancelled: "bg-gray-100 text-gray-500 border-gray-200",
+    pending:
+        "bg-yellow-50 text-yellow-700 border-yellow-200",
+
+    packaging:
+        "bg-orange-50 text-orange-700 border-orange-200",
+
+    rider_assigned:
+        "bg-blue-50 text-blue-700 border-blue-200",
+
+    out_for_delivery:
+        "bg-purple-50 text-purple-700 border-purple-200",
+
+    delivered:
+        "bg-green-50 text-green-700 border-green-200",
+
+    cancelled:
+        "bg-gray-100 text-gray-500 border-gray-200",
 };
 
 export default function Orders() {
@@ -33,70 +38,180 @@ export default function Orders() {
         loadItems();
     }, []);
 
-    function loadItems() {
+    /* ---------------------------------------------------------
+       LOAD SELLER ORDERS
+    --------------------------------------------------------- */
+
+    async function loadItems() {
         setLoading(true);
         setError("");
 
-        api
-            .get("/orders/seller/items/")
-            .then((res) => setItems(res.data))
-            .catch(() => setError("Could not load your orders."))
-            .finally(() => setLoading(false));
+        try {
+            const response = await api.get(
+                "/orders/seller/items/"
+            );
+
+            setItems(response.data);
+        } catch (error) {
+            console.error(
+                "Could not load seller orders:",
+                error.response?.data || error
+            );
+
+            setError(
+                "Could not load your orders."
+            );
+        } finally {
+            setLoading(false);
+        }
     }
 
-    async function handleStatusChange(orderId, status) {
+    /* ---------------------------------------------------------
+       MARK ORDER AS PACKAGING
+    --------------------------------------------------------- */
+
+    async function handlePackaging(orderId) {
         setUpdating(orderId);
 
         try {
-            await api.patch(`/orders/${orderId}/status/`, {
-                status,
-            });
+            await api.patch(
+                `/orders/seller/${orderId}/packaging/`
+            );
 
-            loadItems();
-        } catch {
-            alert("Could not update order status.");
+            // Reload orders so the new status appears
+            await loadItems();
+
+        } catch (error) {
+            console.error(
+                "Packaging update error:",
+                error.response?.data || error
+            );
+
+            alert(
+                error.response?.data?.detail ||
+                "Could not update order status."
+            );
         } finally {
             setUpdating(null);
         }
     }
 
-    /* ---------------- Loading ---------------- */
+    /* ---------------------------------------------------------
+       STATUS DISPLAY
+    --------------------------------------------------------- */
+
+    function getStatus(status) {
+        return (
+            status?.toLowerCase() ||
+            "pending"
+        );
+    }
+
+    /* ---------------------------------------------------------
+       LOADING
+    --------------------------------------------------------- */
 
     if (loading) {
         return (
             <div className="space-y-6">
+
+                {/* Header Skeleton */}
+
                 <div>
                     <div className="h-8 w-32 animate-pulse rounded-lg bg-gray-200" />
+
                     <div className="mt-2 h-4 w-64 animate-pulse rounded bg-gray-100" />
                 </div>
 
+                {/* Order Skeletons */}
+
                 <div className="space-y-4">
+
                     {[1, 2, 3].map((item) => (
                         <div
                             key={item}
-                            className="animate-pulse rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+                            className="
+                                animate-pulse
+                                rounded-2xl
+                                border
+                                border-gray-100
+                                bg-white
+                                p-5
+                                shadow-sm
+                            "
                         >
                             <div className="flex gap-4">
-                                <div className="h-20 w-20 rounded-xl bg-gray-200" />
+
+                                <div
+                                    className="
+                                        h-24
+                                        w-24
+                                        rounded-xl
+                                        bg-gray-200
+                                    "
+                                />
 
                                 <div className="flex-1 space-y-3">
-                                    <div className="h-4 w-40 rounded bg-gray-200" />
-                                    <div className="h-3 w-56 rounded bg-gray-100" />
+
+                                    <div
+                                        className="
+                                            h-4
+                                            w-40
+                                            rounded
+                                            bg-gray-200
+                                        "
+                                    />
+
+                                    <div
+                                        className="
+                                            h-3
+                                            w-56
+                                            rounded
+                                            bg-gray-100
+                                        "
+                                    />
+
+                                    <div
+                                        className="
+                                            h-3
+                                            w-32
+                                            rounded
+                                            bg-gray-100
+                                        "
+                                    />
+
                                 </div>
+
                             </div>
                         </div>
                     ))}
+
                 </div>
+
             </div>
         );
     }
 
-    /* ---------------- Error ---------------- */
+    /* ---------------------------------------------------------
+       ERROR
+    --------------------------------------------------------- */
 
     if (error) {
         return (
             <div className="flex min-h-[400px] items-center justify-center">
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-8 py-6 text-center">
+
+                <div
+                    className="
+                        rounded-2xl
+                        border
+                        border-red-200
+                        bg-red-50
+                        px-8
+                        py-6
+                        text-center
+                    "
+                >
+
                     <p className="text-sm font-medium text-red-600">
                         {error}
                     </p>
@@ -118,28 +233,64 @@ export default function Orders() {
                     >
                         Try Again
                     </button>
+
                 </div>
+
             </div>
         );
     }
 
-    /* ---------------- Empty ---------------- */
+    /* ---------------------------------------------------------
+       EMPTY
+    --------------------------------------------------------- */
 
     if (items.length === 0) {
         return (
             <div className="space-y-6">
+
+                {/* Header */}
+
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">
                         Orders
                     </h1>
 
                     <p className="mt-1 text-sm text-gray-500">
-                        Manage and track orders from your store.
+                        Manage and prepare orders from your store.
                     </p>
                 </div>
 
-                <div className="flex min-h-[400px] flex-col items-center justify-center rounded-2xl border border-gray-100 bg-white p-8 text-center shadow-sm">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50 text-green-600">
+                {/* Empty State */}
+
+                <div
+                    className="
+                        flex
+                        min-h-[400px]
+                        flex-col
+                        items-center
+                        justify-center
+                        rounded-2xl
+                        border
+                        border-gray-100
+                        bg-white
+                        p-8
+                        text-center
+                        shadow-sm
+                    "
+                >
+
+                    <div
+                        className="
+                            flex
+                            h-16
+                            w-16
+                            items-center
+                            justify-center
+                            rounded-2xl
+                            bg-green-50
+                            text-green-600
+                        "
+                    >
                         <ShoppingBag size={30} />
                     </div>
 
@@ -148,42 +299,87 @@ export default function Orders() {
                     </h2>
 
                     <p className="mt-2 max-w-sm text-sm text-gray-500">
-                        When customers purchase your products, their
-                        orders will appear here.
+                        When customers purchase your products,
+                        their orders will appear here.
                     </p>
+
                 </div>
+
             </div>
         );
     }
 
-    /* ---------------- Orders ---------------- */
+    /* ---------------------------------------------------------
+       ORDERS
+    --------------------------------------------------------- */
 
     return (
         <div className="space-y-7">
 
-            {/* Header */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            {/* -------------------------------------------------
+                HEADER
+            ------------------------------------------------- */}
+
+            <div
+                className="
+                    flex
+                    flex-col
+                    gap-2
+                    sm:flex-row
+                    sm:items-end
+                    sm:justify-between
+                "
+            >
+
                 <div>
+
                     <h1 className="text-3xl font-bold text-gray-900">
                         Orders
                     </h1>
 
                     <p className="mt-1 text-sm text-gray-500">
-                        Manage and track orders from your store.
+                        Manage and prepare orders from your store.
                     </p>
+
                 </div>
 
-                <div className="inline-flex w-fit items-center gap-2 rounded-xl bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+                <div
+                    className="
+                        inline-flex
+                        w-fit
+                        items-center
+                        gap-2
+                        rounded-xl
+                        bg-green-50
+                        px-4
+                        py-2
+                        text-sm
+                        font-medium
+                        text-green-700
+                    "
+                >
                     <Package size={17} />
-                    {items.length} {items.length === 1 ? "Order" : "Orders"}
+
+                    {items.length}
+
+                    {items.length === 1
+                        ? " Order"
+                        : " Orders"}
                 </div>
+
             </div>
 
-            {/* Order list */}
+            {/* -------------------------------------------------
+                ORDER LIST
+            ------------------------------------------------- */}
+
             <div className="space-y-4">
+
                 {items.map((item) => {
-                    const status =
-                        item.status?.toLowerCase() || "pending";
+
+                    const status = getStatus(
+                        item.order_status
+                    );
 
                     return (
                         <div
@@ -199,14 +395,37 @@ export default function Orders() {
                                 hover:shadow-md
                             "
                         >
-                            <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center">
 
-                                {/* Product Image */}
+                            {/* -------------------------------------------------
+                                MAIN ORDER CONTENT
+                            ------------------------------------------------- */}
+
+                            <div
+                                className="
+                                    flex
+                                    flex-col
+                                    gap-5
+                                    p-5
+                                    lg:flex-row
+                                    lg:items-center
+                                "
+                            >
+
+                                {/* -------------------------------------------------
+                                    PRODUCT IMAGE
+                                ------------------------------------------------- */}
+
                                 <div className="flex-shrink-0">
+
                                     {item.product_detail?.image ? (
+
                                         <img
-                                            src={item.product_detail.image}
-                                            alt={item.product_name}
+                                            src={
+                                                item.product_detail.image
+                                            }
+                                            alt={
+                                                item.product_name
+                                            }
                                             className="
                                                 h-24
                                                 w-24
@@ -216,7 +435,9 @@ export default function Orders() {
                                                 object-cover
                                             "
                                         />
+
                                     ) : (
+
                                         <div
                                             className="
                                                 flex
@@ -231,16 +452,37 @@ export default function Orders() {
                                         >
                                             <Package size={28} />
                                         </div>
+
                                     )}
+
                                 </div>
 
-                                {/* Product Information */}
+                                {/* -------------------------------------------------
+                                    PRODUCT INFORMATION
+                                ------------------------------------------------- */}
+
                                 <div className="min-w-0 flex-1">
 
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <h2 className="text-base font-semibold text-gray-900">
+                                    <div
+                                        className="
+                                            flex
+                                            flex-wrap
+                                            items-center
+                                            gap-2
+                                        "
+                                    >
+
+                                        <h2
+                                            className="
+                                                text-base
+                                                font-semibold
+                                                text-gray-900
+                                            "
+                                        >
                                             {item.product_name}
                                         </h2>
+
+                                        {/* STATUS */}
 
                                         <span
                                             className={`
@@ -251,15 +493,36 @@ export default function Orders() {
                                                 text-xs
                                                 font-medium
                                                 capitalize
-                                                ${STATUS_STYLES[status] ||
-                                                STATUS_STYLES.pending}
+                                                ${
+                                                    STATUS_STYLES[
+                                                        status
+                                                    ] ||
+                                                    STATUS_STYLES.pending
+                                                }
                                             `}
                                         >
-                                            {status}
+                                            {status.replace(
+                                                /_/g,
+                                                " "
+                                            )}
                                         </span>
+
                                     </div>
 
-                                    <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-500 sm:grid-cols-2">
+                                    {/* ORDER INFORMATION */}
+
+                                    <div
+                                        className="
+                                            mt-3
+                                            grid
+                                            grid-cols-1
+                                            gap-2
+                                            text-sm
+                                            text-gray-500
+                                            sm:grid-cols-2
+                                        "
+                                    >
+
                                         <p>
                                             <span className="font-medium text-gray-700">
                                                 Quantity:
@@ -271,134 +534,216 @@ export default function Orders() {
                                             <span className="font-medium text-gray-700">
                                                 Price:
                                             </span>{" "}
-                                            Rs. {item.price_at_purchase}
+                                            Rs.{" "}
+                                            {
+                                                item.price_at_purchase
+                                            }
                                         </p>
 
                                         <p>
                                             <span className="font-medium text-gray-700">
                                                 Subtotal:
                                             </span>{" "}
+
                                             <span className="font-semibold text-gray-900">
-                                                Rs. {item.subtotal}
+                                                Rs.{" "}
+                                                {item.subtotal}
                                             </span>
                                         </p>
 
-                                        {item.order && (
-                                            <p>
-                                                <span className="font-medium text-gray-700">
-                                                    Order:
-                                                </span>{" "}
-                                                #{item.order}
-                                            </p>
-                                        )}
+                                        <p>
+                                            <span className="font-medium text-gray-700">
+                                                Order:
+                                            </span>{" "}
+                                            #{item.order}
+                                        </p>
+
                                     </div>
+
                                 </div>
 
-                                {/* Status Update */}
-                                <div className="w-full lg:w-48">
-                                    <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-gray-400">
-                                        Update Status
-                                    </label>
+                                {/* -------------------------------------------------
+                                    SELLER ACTION
+                                ------------------------------------------------- */}
 
-                                    <div className="relative">
-                                        <select
-                                            defaultValue=""
-                                            onChange={(e) =>
-                                                handleStatusChange(
-                                                    item.order,
-                                                    e.target.value
+                                <div className="w-full lg:w-48">
+
+                                    {status === "pending" ? (
+
+                                        <button
+                                            onClick={() =>
+                                                handlePackaging(
+                                                    item.order
                                                 )
                                             }
                                             disabled={
-                                                updating === item.order
+                                                updating ===
+                                                item.order
                                             }
                                             className="
+                                                flex
                                                 w-full
-                                                appearance-none
+                                                items-center
+                                                justify-center
+                                                gap-2
                                                 rounded-xl
-                                                border
-                                                border-gray-200
-                                                bg-white
+                                                bg-orange-500
                                                 px-4
                                                 py-2.5
-                                                pr-10
                                                 text-sm
-                                                font-medium
-                                                capitalize
-                                                text-gray-700
-                                                outline-none
+                                                font-semibold
+                                                text-white
                                                 transition
-                                                focus:border-green-500
-                                                focus:ring-2
-                                                focus:ring-green-100
+                                                hover:bg-orange-600
                                                 disabled:cursor-not-allowed
-                                                disabled:bg-gray-50
                                                 disabled:opacity-60
                                             "
                                         >
-                                            <option
-                                                value=""
-                                                disabled
-                                            >
-                                                Select status
-                                            </option>
 
-                                            {STATUS_OPTIONS.map(
-                                                (option) => (
-                                                    <option
-                                                        key={option}
-                                                        value={option}
-                                                    >
-                                                        {option}
-                                                    </option>
-                                                )
+                                            {updating ===
+                                            item.order ? (
+
+                                                <>
+                                                    <span
+                                                        className="
+                                                            h-4
+                                                            w-4
+                                                            animate-spin
+                                                            rounded-full
+                                                            border-2
+                                                            border-white/40
+                                                            border-t-white
+                                                        "
+                                                    />
+
+                                                    Updating...
+
+                                                </>
+
+                                            ) : (
+
+                                                <>
+                                                    <Package
+                                                        size={17}
+                                                    />
+
+                                                    Start Packaging
+                                                </>
+
                                             )}
-                                        </select>
 
-                                        <ChevronDown
-                                            size={17}
+                                        </button>
+
+                                    ) : status === "packaging" ? (
+
+                                        <div
                                             className="
-                                                pointer-events-none
-                                                absolute
-                                                right-3
-                                                top-1/2
-                                                -translate-y-1/2
-                                                text-gray-400
+                                                flex
+                                                w-full
+                                                items-center
+                                                justify-center
+                                                gap-2
+                                                rounded-xl
+                                                border
+                                                border-orange-200
+                                                bg-orange-50
+                                                px-4
+                                                py-2.5
+                                                text-sm
+                                                font-semibold
+                                                text-orange-700
                                             "
-                                        />
-                                    </div>
-
-                                    {updating === item.order && (
-                                        <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
-                                            <span
-                                                className="
-                                                    h-3.5
-                                                    w-3.5
-                                                    animate-spin
-                                                    rounded-full
-                                                    border-2
-                                                    border-green-200
-                                                    border-t-green-600
-                                                "
+                                        >
+                                            <CheckCircle2
+                                                size={17}
                                             />
-                                            Updating...
+
+                                            Packaging
+
                                         </div>
+
+                                    ) : (
+
+                                        <div
+                                            className="
+                                                rounded-xl
+                                                border
+                                                border-gray-200
+                                                bg-gray-50
+                                                px-4
+                                                py-2.5
+                                                text-center
+                                                text-sm
+                                                font-medium
+                                                capitalize
+                                                text-gray-500
+                                            "
+                                        >
+                                            {status.replace(
+                                                /_/g,
+                                                " "
+                                            )}
+                                        </div>
+
                                     )}
+
                                 </div>
+
                             </div>
 
-                            {/* Bottom order bar */}
-                            <div className="flex items-center gap-2 border-t border-gray-100 bg-gray-50/70 px-5 py-3 text-xs text-gray-500">
-                                <User size={14} />
+                            {/* -------------------------------------------------
+                                BOTTOM BAR
+                            ------------------------------------------------- */}
 
-                                <span>
-                                    Order item #{item.id}
-                                </span>
+                            <div
+                                className="
+                                    flex
+                                    flex-wrap
+                                    items-center
+                                    gap-x-5
+                                    gap-y-2
+                                    border-t
+                                    border-gray-100
+                                    bg-gray-50/70
+                                    px-5
+                                    py-3
+                                    text-xs
+                                    text-gray-500
+                                "
+                            >
+
+                                <div className="flex items-center gap-2">
+                                    <User size={14} />
+
+                                    <span>
+                                        Order item #{item.id}
+                                    </span>
+                                </div>
+
+                                <div>
+                                    Order #{item.order}
+                                </div>
+
+                                {item.order_status && (
+                                    <div>
+                                        Status:{" "}
+                                        <span className="font-medium capitalize text-gray-700">
+                                            {item.order_status.replace(
+                                                /_/g,
+                                                " "
+                                            )}
+                                        </span>
+                                    </div>
+                                )}
+
                             </div>
+
                         </div>
                     );
                 })}
+
             </div>
+
         </div>
     );
 }

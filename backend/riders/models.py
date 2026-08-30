@@ -1,27 +1,14 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 
 
 class RiderProfile(models.Model):
 
-    VEHICLE_CHOICES = (
-        ("bike", "Bike"),
-        ("scooter", "Scooter"),
-        ("car", "Car"),
-        ("van", "Van"),
-    )
-
-    STATUS_CHOICES = (
+    AVAILABILITY_CHOICES = [
         ("available", "Available"),
         ("busy", "Busy"),
         ("offline", "Offline"),
-    )
-
-    VERIFICATION_CHOICES = (
-        ("pending", "Pending"),
-        ("verified", "Verified"),
-        ("rejected", "Rejected"),
-    )
+    ]
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -29,30 +16,19 @@ class RiderProfile(models.Model):
         related_name="rider_profile",
     )
 
-    vehicle_type = models.CharField(
-        max_length=20,
-        choices=VEHICLE_CHOICES,
-    )
-
-    vehicle_number = models.CharField(
-        max_length=30,
-        unique=True,
-    )
-
-    verification_status = models.CharField(
-        max_length=20,
-        choices=VERIFICATION_CHOICES,
-        default="verified",
-    )
+    # Captured from the physical application form.
+    # Kept separate from `user.username` since the
+    # username is just a login handle, not the rider's
+    # actual name.
+    full_name = models.CharField(max_length=150, null=True, blank=True)
 
     availability_status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default="offline",
+        max_length=10,
+        choices=AVAILABILITY_CHOICES,
+        default="available",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.vehicle_number}"
+        return f"{self.full_name} ({self.user.username})"

@@ -12,6 +12,7 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
   const [draft, setDraft] = useState({
     description: product.description || "",
     price: product.price,
+    discount_percentage: product.discount_percentage ?? 0,
     stock: product.stock,
   });
 
@@ -20,10 +21,16 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
     product.images?.[0] ||
     null;
 
+  // ---------------------------------------------------------
+  // Start Editing
+  // ---------------------------------------------------------
+
   function startEditing() {
     setDraft({
       description: product.description || "",
       price: product.price,
+      discount_percentage:
+        product.discount_percentage ?? 0,
       stock: product.stock,
     });
 
@@ -31,27 +38,53 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
     setEditing(true);
   }
 
+  // ---------------------------------------------------------
+  // Save Edit
+  // ---------------------------------------------------------
+
   async function saveEdit() {
     setError("");
 
-    if (Number(draft.price) <= 0) {
+    const price = Number(draft.price);
+    const discount = Number(draft.discount_percentage);
+    const stock = Number(draft.stock);
+
+    // Price validation
+    if (!Number.isFinite(price) || price <= 0) {
       setError("Price must be greater than zero.");
       return;
     }
 
-    if (Number(draft.stock) < 0) {
-      setError("Stock can't be negative.");
+    // Discount validation
+    if (
+      !Number.isFinite(discount) ||
+      discount < 0 ||
+      discount > 100
+    ) {
+      setError(
+        "Discount percentage must be between 0 and 100."
+      );
+      return;
+    }
+
+    // Stock validation
+    if (!Number.isInteger(stock) || stock < 0) {
+      setError("Stock must be a whole number and cannot be negative.");
       return;
     }
 
     setSaving(true);
 
     try {
-      const res = await api.patch(`/products/${product.id}/edit/`, {
-        description: draft.description,
-        price: draft.price,
-        stock: draft.stock,
-      });
+      const res = await api.patch(
+        `/products/${product.id}/edit/`,
+        {
+          description: draft.description,
+          price: draft.price,
+          discount_percentage: draft.discount_percentage,
+          stock: draft.stock,
+        }
+      );
 
       onUpdated(res.data);
       setEditing(false);
@@ -60,7 +93,9 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
 
       setError(
         data?.price?.[0] ||
+          data?.discount_percentage?.[0] ||
           data?.stock?.[0] ||
+          data?.description?.[0] ||
           data?.detail ||
           "Could not save changes."
       );
@@ -69,14 +104,21 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
     }
   }
 
+  // ---------------------------------------------------------
+  // Toggle Active
+  // ---------------------------------------------------------
+
   async function toggleActive() {
     setError("");
     setTogglingActive(true);
 
     try {
-      const res = await api.patch(`/products/${product.id}/edit/`, {
-        is_active: !product.is_active,
-      });
+      const res = await api.patch(
+        `/products/${product.id}/edit/`,
+        {
+          is_active: !product.is_active,
+        }
+      );
 
       onUpdated(res.data);
     } catch (err) {
@@ -89,12 +131,19 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
     }
   }
 
+  // ---------------------------------------------------------
+  // Delete
+  // ---------------------------------------------------------
+
   async function confirmDelete() {
     setDeleting(true);
     setError("");
 
     try {
-      await api.delete(`/products/${product.id}/delete/`);
+      await api.delete(
+        `/products/${product.id}/delete/`
+      );
+
       onDeleted(product.id);
     } catch (err) {
       setError(
@@ -107,10 +156,42 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
     }
   }
 
+  // ---------------------------------------------------------
+  // Live Discount Calculation
+  // ---------------------------------------------------------
+
+  const currentPrice = Number(draft.price) || 0;
+  const currentDiscount =
+    Number(draft.discount_percentage) || 0;
+
+  const previewDiscountedPrice =
+    currentPrice -
+    (currentPrice * currentDiscount) / 100;
+
+  // ---------------------------------------------------------
+  // Display Values
+  // ---------------------------------------------------------
+
+  const productPrice = Number(product.price) || 0;
+  const productDiscount =
+    Number(product.discount_percentage) || 0;
+
+  const productDiscountedPrice =
+    product.discounted_price != null
+      ? Number(product.discounted_price)
+      : productPrice -
+        (productPrice * productDiscount) / 100;
+
+  const hasDiscount = productDiscount > 0;
+
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition">
       <div className="flex gap-4">
-        {/* Product image */}
+
+        {/* =====================================================
+            Product Image
+        ===================================================== */}
+
         <div className="shrink-0">
           {cover ? (
             <img
@@ -125,11 +206,17 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
           )}
         </div>
 
-        {/* Product content */}
+        {/* =====================================================
+            Product Content
+        ===================================================== */}
+
         <div className="flex-1 min-w-0">
+
           {/* Header */}
           <div className="flex items-start justify-between gap-3">
+
             <div className="min-w-0">
+
               <h3 className="font-semibold text-lg text-gray-900 truncate">
                 {product.name}
               </h3>
@@ -137,9 +224,10 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
               <p className="text-sm text-gray-500 mt-1">
                 Product ID: #{product.id}
               </p>
+
             </div>
 
-            {/* Active / inactive */}
+            {/* Active / Inactive */}
             <button
               type="button"
               onClick={toggleActive}
@@ -157,6 +245,7 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
                 ? "Active"
                 : "Inactive"}
             </button>
+
           </div>
 
           {/* Error */}
@@ -166,45 +255,94 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
             </div>
           )}
 
+          {/* =================================================
+              NORMAL VIEW
+          ================================================= */}
+
           {!editing ? (
             <>
               {/* Description */}
               <p className="text-sm text-gray-600 mt-3 line-clamp-2">
-                {product.description || "No description provided."}
+                {product.description ||
+                  "No description provided."}
               </p>
 
-              {/* Price + stock */}
-              <div className="flex flex-wrap items-center gap-5 mt-4">
+              {/* Price + Discount + Stock */}
+              <div className="flex flex-wrap items-start gap-6 mt-4">
+
+                {/* Price */}
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">
                     Price
                   </p>
 
-                  <p className="text-xl font-bold text-green-700">
-                    Rs. {Number(product.price).toFixed(2)}
-                  </p>
+                  {hasDiscount ? (
+                    <div className="mt-1">
+
+                      <div className="flex items-center gap-2">
+
+                        <p className="text-sm text-gray-400 line-through">
+                          Rs. {productPrice.toFixed(2)}
+                        </p>
+
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">
+                          {productDiscount}% OFF
+                        </span>
+
+                      </div>
+
+                      <p className="text-xl font-bold text-green-700">
+                        Rs.{" "}
+                        {productDiscountedPrice.toFixed(2)}
+                      </p>
+
+                    </div>
+                  ) : (
+                    <p className="text-xl font-bold text-green-700 mt-1">
+                      Rs. {productPrice.toFixed(2)}
+                    </p>
+                  )}
                 </div>
 
+                {/* Discount */}
+                {hasDiscount && (
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">
+                      Discount
+                    </p>
+
+                    <p className="mt-1 text-lg font-bold text-red-600">
+                      {productDiscount}%
+                    </p>
+                  </div>
+                )}
+
+                {/* Stock */}
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">
                     Stock
                   </p>
 
                   <p
-                    className={`font-semibold ${
+                    className={`mt-1 font-semibold ${
                       product.stock > 0
                         ? "text-gray-800"
                         : "text-red-600"
                     }`}
                   >
                     {product.stock}{" "}
-                    {product.stock === 1 ? "item" : "items"}
+                    {product.stock === 1
+                      ? "item"
+                      : "items"}
                   </p>
                 </div>
+
               </div>
 
               {/* Actions */}
               <div className="flex flex-wrap gap-2 mt-5">
+
+                {/* Edit */}
                 <button
                   type="button"
                   onClick={startEditing}
@@ -213,16 +351,20 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
                   Edit Product
                 </button>
 
+                {/* Delete */}
                 {!confirmingDelete ? (
                   <button
                     type="button"
-                    onClick={() => setConfirmingDelete(true)}
+                    onClick={() =>
+                      setConfirmingDelete(true)
+                    }
                     className="px-4 py-2 text-sm font-medium border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition"
                   >
                     Delete
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
+
                     <span className="text-sm text-gray-600">
                       Delete product?
                     </span>
@@ -233,24 +375,37 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
                       disabled={deleting}
                       className="px-3 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition"
                     >
-                      {deleting ? "Deleting..." : "Yes, Delete"}
+                      {deleting
+                        ? "Deleting..."
+                        : "Yes, Delete"}
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => setConfirmingDelete(false)}
+                      onClick={() =>
+                        setConfirmingDelete(false)
+                      }
                       className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition"
                     >
                       Cancel
                     </button>
+
                   </div>
                 )}
+
               </div>
             </>
           ) : (
-            /* Edit form */
+
+            /* =================================================
+               EDIT FORM
+            ================================================= */
+
             <div className="mt-4 space-y-4">
+
+              {/* Description */}
               <div>
+
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
                 </label>
@@ -267,15 +422,21 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   placeholder="Product description"
                 />
+
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Price / Discount / Stock */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+                {/* Price */}
                 <div>
+
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Price
                   </label>
 
                   <div className="relative">
+
                     <span className="absolute left-3 top-2 text-sm text-gray-500">
                       Rs.
                     </span>
@@ -293,10 +454,52 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
                       }
                       className="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
+
                   </div>
+
                 </div>
 
+                {/* Discount */}
                 <div>
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Discount
+                  </label>
+
+                  <div className="relative">
+
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={draft.discount_percentage}
+                      onChange={(e) =>
+                        setDraft((d) => ({
+                          ...d,
+                          discount_percentage:
+                            e.target.value,
+                        }))
+                      }
+                      className="w-full border border-gray-300 rounded-lg px-3 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="0"
+                    />
+
+                    <span className="absolute right-3 top-2 text-sm text-gray-500">
+                      %
+                    </span>
+
+                  </div>
+
+                  <p className="mt-1 text-xs text-gray-400">
+                    Enter 0 to remove discount
+                  </p>
+
+                </div>
+
+                {/* Stock */}
+                <div>
+
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Stock
                   </label>
@@ -314,18 +517,59 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
                     }
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
+
                 </div>
+
               </div>
 
-              {/* Edit actions */}
+              {/* Live Discount Preview */}
+              <div className="rounded-xl border border-green-100 bg-green-50 p-4">
+
+                <p className="text-xs font-medium uppercase tracking-wide text-green-700">
+                  Customer Price Preview
+                </p>
+
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+
+                  {currentDiscount > 0 && (
+                    <span className="text-sm text-gray-400 line-through">
+                      Rs. {currentPrice.toFixed(2)}
+                    </span>
+                  )}
+
+                  <span className="text-xl font-bold text-green-700">
+                    Rs.{" "}
+                    {previewDiscountedPrice.toFixed(2)}
+                  </span>
+
+                  {currentDiscount > 0 && (
+                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-600">
+                      {currentDiscount}% OFF
+                    </span>
+                  )}
+
+                </div>
+
+                {currentDiscount === 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    No discount applied.
+                  </p>
+                )}
+
+              </div>
+
+              {/* Edit Actions */}
               <div className="flex gap-2">
+
                 <button
                   type="button"
                   onClick={saveEdit}
                   disabled={saving}
                   className="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 transition"
                 >
-                  {saving ? "Saving..." : "Save Changes"}
+                  {saving
+                    ? "Saving..."
+                    : "Save Changes"}
                 </button>
 
                 <button
@@ -339,9 +583,12 @@ export default function SelCard({ product, onUpdated, onDeleted }) {
                 >
                   Cancel
                 </button>
+
               </div>
+
             </div>
           )}
+
         </div>
       </div>
     </div>

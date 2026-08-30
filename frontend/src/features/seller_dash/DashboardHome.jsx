@@ -19,7 +19,18 @@ export default function DashboardHome() {
     const navigate = useNavigate();
 
     const [totalProducts, setTotalProducts] = useState(0);
+    const [orderStats, setOrderStats] = useState({
+        orders: 0,
+        revenue: 0,
+        pending: 0,
+    });
+
     const [loadingProducts, setLoadingProducts] = useState(true);
+    const [loadingOrders, setLoadingOrders] = useState(true);
+
+    // =========================================================
+    // LOAD PRODUCTS
+    // =========================================================
 
     useEffect(() => {
         let cancelled = false;
@@ -47,35 +58,139 @@ export default function DashboardHome() {
         };
     }, []);
 
+    // =========================================================
+    // LOAD SELLER ORDERS
+    // =========================================================
+
+    useEffect(() => {
+        let cancelled = false;
+
+        api
+            .get("/orders/seller/items/")
+            .then((res) => {
+                if (cancelled) return;
+
+                const items = Array.isArray(res.data)
+                    ? res.data
+                    : [];
+
+                // -------------------------------------------------
+                // Get unique orders
+                // -------------------------------------------------
+
+                const uniqueOrderIds = new Set();
+
+                items.forEach((item) => {
+                    if (item.order) {
+                        uniqueOrderIds.add(item.order);
+                    }
+                });
+
+                // -------------------------------------------------
+                // Calculate revenue
+                // -------------------------------------------------
+
+                const revenue = items.reduce((total, item) => {
+                    const subtotal = Number(item.subtotal || 0);
+
+                    return total + subtotal;
+                }, 0);
+
+                // -------------------------------------------------
+                // Get unique pending orders
+                // -------------------------------------------------
+
+                const pendingOrderIds = new Set();
+
+                items.forEach((item) => {
+                    const status = (
+                        item.order_status || ""
+                    ).toLowerCase();
+
+                    if (
+                        item.order &&
+                        status === "pending"
+                    ) {
+                        pendingOrderIds.add(item.order);
+                    }
+                });
+
+                setOrderStats({
+                    orders: uniqueOrderIds.size,
+                    revenue,
+                    pending: pendingOrderIds.size,
+                });
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setOrderStats({
+                        orders: 0,
+                        revenue: 0,
+                        pending: 0,
+                    });
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoadingOrders(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // =========================================================
+    // BUSINESS NAME
+    // =========================================================
+
     const businessName =
-        profile?.seller_profile?.business_name || "Your Store";
+        profile?.seller_profile?.business_name ||
+        "Your Store";
+
+    // =========================================================
+    // DASHBOARD STATS
+    // =========================================================
 
     const stats = [
         {
             title: "Total Products",
-            value: loadingProducts ? "—" : totalProducts,
+            value: loadingProducts
+                ? "—"
+                : totalProducts,
             description: "Products in your store",
             icon: Package,
         },
         {
             title: "Orders",
-            value: "0",
+            value: loadingOrders
+                ? "—"
+                : orderStats.orders,
             description: "Total orders received",
             icon: ShoppingCart,
         },
         {
             title: "Revenue",
-            value: "Rs. 0",
-            description: "Total earnings",
+            value: loadingOrders
+                ? "—"
+                : `Rs. ${orderStats.revenue.toLocaleString()}`,
+            description: "Total earnings from your products",
             icon: Wallet,
         },
         {
             title: "Pending Orders",
-            value: "0",
+            value: loadingOrders
+                ? "—"
+                : orderStats.pending,
             description: "Orders waiting for action",
             icon: Clock3,
         },
     ];
+
+    // =========================================================
+    // RENDER
+    // =========================================================
 
     return (
         <div className="space-y-7">
@@ -83,6 +198,7 @@ export default function DashboardHome() {
             {/* =========================
                 Welcome Header
             ========================= */}
+
             <div className="flex flex-col gap-5 rounded-2xl bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
 
                 <div>
@@ -105,7 +221,9 @@ export default function DashboardHome() {
 
                 <button
                     type="button"
-                    onClick={() => navigate("/seller/products/add")}
+                    onClick={() =>
+                        navigate("/seller/products/add")
+                    }
                     className="
                         inline-flex
                         items-center
@@ -135,6 +253,7 @@ export default function DashboardHome() {
             {/* =========================
                 Statistics
             ========================= */}
+
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
 
                 {stats.map((stat) => {
@@ -207,9 +326,11 @@ export default function DashboardHome() {
             {/* =========================
                 Main Dashboard Content
             ========================= */}
+
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
 
                 {/* Recent Activity */}
+
                 <div
                     className="
                         rounded-2xl
@@ -243,28 +364,88 @@ export default function DashboardHome() {
                     </div>
 
 
-                    {/* Empty activity state */}
-                    <div className="mt-7 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
+                    {/* Activity summary */}
 
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm">
-                            <Clock3 size={25} />
+                    {loadingOrders ? (
+
+                        <div className="mt-7 flex items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10">
+
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+
+                                <span
+                                    className="
+                                        h-4
+                                        w-4
+                                        animate-spin
+                                        rounded-full
+                                        border-2
+                                        border-gray-200
+                                        border-t-green-600
+                                    "
+                                />
+
+                                Loading activity...
+
+                            </div>
+
                         </div>
 
-                        <h3 className="mt-4 text-sm font-semibold text-gray-800">
-                            No recent activity
-                        </h3>
+                    ) : orderStats.orders === 0 ? (
 
-                        <p className="mt-1 max-w-sm text-xs leading-5 text-gray-500">
-                            Your recent orders, product updates, and store
-                            activity will appear here.
-                        </p>
+                        <div className="mt-7 flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center">
 
-                    </div>
+                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm">
+                                <Clock3 size={25} />
+                            </div>
+
+                            <h3 className="mt-4 text-sm font-semibold text-gray-800">
+                                No recent activity
+                            </h3>
+
+                            <p className="mt-1 max-w-sm text-xs leading-5 text-gray-500">
+                                Your recent orders, product updates, and store
+                                activity will appear here.
+                            </p>
+
+                        </div>
+
+                    ) : (
+
+                        <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+                            <div className="rounded-xl bg-green-50 p-4">
+
+                                <p className="text-xs font-medium text-green-600">
+                                    Total Orders
+                                </p>
+
+                                <p className="mt-1 text-xl font-bold text-gray-900">
+                                    {orderStats.orders}
+                                </p>
+
+                            </div>
+
+                            <div className="rounded-xl bg-yellow-50 p-4">
+
+                                <p className="text-xs font-medium text-yellow-600">
+                                    Pending Orders
+                                </p>
+
+                                <p className="mt-1 text-xl font-bold text-gray-900">
+                                    {orderStats.pending}
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    )}
 
                 </div>
 
 
                 {/* Quick Actions */}
+
                 <div
                     className="
                         rounded-2xl
@@ -288,6 +469,7 @@ export default function DashboardHome() {
                     <div className="mt-6 space-y-3">
 
                         {/* Add Product */}
+
                         <button
                             type="button"
                             onClick={() =>
@@ -317,6 +499,7 @@ export default function DashboardHome() {
                                 </div>
 
                                 <div>
+
                                     <p className="text-sm font-semibold text-gray-800">
                                         Add Product
                                     </p>
@@ -324,6 +507,7 @@ export default function DashboardHome() {
                                     <p className="text-xs text-gray-500">
                                         List a new product
                                     </p>
+
                                 </div>
 
                             </div>
@@ -337,6 +521,7 @@ export default function DashboardHome() {
 
 
                         {/* My Products */}
+
                         <button
                             type="button"
                             onClick={() =>
@@ -366,6 +551,7 @@ export default function DashboardHome() {
                                 </div>
 
                                 <div>
+
                                     <p className="text-sm font-semibold text-gray-800">
                                         My Products
                                     </p>
@@ -373,6 +559,7 @@ export default function DashboardHome() {
                                     <p className="text-xs text-gray-500">
                                         Manage your products
                                     </p>
+
                                 </div>
 
                             </div>
@@ -386,6 +573,7 @@ export default function DashboardHome() {
 
 
                         {/* Orders */}
+
                         <button
                             type="button"
                             onClick={() =>
@@ -415,6 +603,7 @@ export default function DashboardHome() {
                                 </div>
 
                                 <div>
+
                                     <p className="text-sm font-semibold text-gray-800">
                                         Orders
                                     </p>
@@ -422,6 +611,7 @@ export default function DashboardHome() {
                                     <p className="text-xs text-gray-500">
                                         View customer orders
                                     </p>
+
                                 </div>
 
                             </div>
@@ -443,6 +633,7 @@ export default function DashboardHome() {
             {/* =========================
                 Store Overview
             ========================= */}
+
             <div className="rounded-2xl bg-green-700 p-6 text-white shadow-sm">
 
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
@@ -450,11 +641,13 @@ export default function DashboardHome() {
                     <div>
 
                         <div className="flex items-center gap-2 text-green-100">
+
                             <Store size={18} />
 
                             <span className="text-sm font-medium">
                                 Your Store
                             </span>
+
                         </div>
 
                         <h2 className="mt-2 text-xl font-bold">
@@ -464,7 +657,9 @@ export default function DashboardHome() {
                         <p className="mt-1 text-sm text-green-100">
                             You currently have{" "}
                             <span className="font-semibold text-white">
-                                {loadingProducts ? "—" : totalProducts}
+                                {loadingProducts
+                                    ? "—"
+                                    : totalProducts}
                             </span>{" "}
                             product
                             {totalProducts !== 1 ? "s" : ""} listed.
@@ -474,7 +669,9 @@ export default function DashboardHome() {
 
                     <button
                         type="button"
-                        onClick={() => navigate("/seller/products")}
+                        onClick={() =>
+                            navigate("/seller/products")
+                        }
                         className="
                             inline-flex
                             items-center

@@ -33,7 +33,7 @@ import ProductDetail from "./components/card/ProductDetail";
 // CUSTOMER
 // ============================================================
 
-import Wishlist from "./features/wishlist/Wishlist";
+import Wishlist from "./features/wishlist/WishList";
 import Cart from "./features/cart/Cart";
 import Orders from "./features/orders/Orders";
 import OrderDetail from "./features/orders/OrderDetail";
@@ -46,8 +46,14 @@ import SellerDashboard from "./features/seller_dash/SellerDashboard";
 import DashboardHome from "./features/seller_dash/DashboardHome";
 import SelProduct from "./features/seller_dash/SelProduct";
 import AddProduct from "./features/seller_dash/AddProduct";
-import SellerOrders from "./features/seller_dash/Orders";
+import SellerOrders from "./features/seller_dash/orders";
 import Analytics from "./features/seller_dash/Analytics";
+
+// ============================================================
+// RIDER
+// ============================================================
+
+import RiderDashboard from "./features/riders/RiderDashboard";
 
 // ============================================================
 // APP
@@ -185,17 +191,10 @@ function App() {
                 RIDER
             ================================================== */}
 
-            {/*
             <Route
                 path="/rider"
                 element={<RiderDashboard />}
-            >
-                <Route
-                    path="orders"
-                    element={<RiderOrders />}
-                />
-            </Route>
-            */}
+            />
 
 
             {/* ==================================================
@@ -203,20 +202,16 @@ function App() {
             ================================================== */}
 
             {/*
-            <Route
-                path="/admin"
-                element={<AdminDashboard />}
-            >
-                <Route
-                    path="orders"
-                    element={<AdminOrders />}
-                />
+                Admin frontend is not required.
 
-                <Route
-                    path="riders"
-                    element={<AdminRiders />}
-                />
-            </Route>
+                Django Admin handles:
+
+                - Creating riders
+                - Managing rider users
+                - Activating/deactivating riders
+                - Assigning riders to orders
+                - Cancelling orders
+                - Managing other admin data
             */}
 
         </Routes>

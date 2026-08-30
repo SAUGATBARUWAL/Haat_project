@@ -1,22 +1,38 @@
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Order, OrderItem
 from cart.models import Cart
+from products.models import Product
+
+from .models import Order, OrderItem
+
+
+# ==========================================================
+# ORDER ITEM PRODUCT
+# ==========================================================
 
 
 class OrderItemProductSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
+
     image = serializers.SerializerMethodField()
 
     def get_image(self, obj):
+
         primary = (
-            obj.images.filter(is_primary=True).first()
+            obj.images.filter(
+                is_primary=True
+            ).first()
             or obj.images.first()
         )
 
         return primary.image if primary else None
+
+
+# ==========================================================
+# ORDER ITEM
+# ==========================================================
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -30,6 +46,11 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
     subtotal = serializers.SerializerMethodField()
 
+    order_status = serializers.CharField(
+        source="order.status",
+        read_only=True,
+    )
+
     class Meta:
         model = OrderItem
 
@@ -40,9 +61,15 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "product_detail",
             "product_name",
             "product_image",
+
+            "original_price_at_purchase",
+            "discount_percentage_at_purchase",
             "price_at_purchase",
+
             "quantity",
             "subtotal",
+
+            "order_status",
         ]
 
         read_only_fields = fields
@@ -62,25 +89,36 @@ class OrderItemSerializer(serializers.ModelSerializer):
         return primary.image if primary else None
 
     def get_subtotal(self, obj):
+
         return obj.subtotal()
+
+
+# ==========================================================
+# RIDER
+# ==========================================================
+
 
 class OrderRiderSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
-    username = serializers.CharField()
+
+    full_name = serializers.CharField()
+
     phone = serializers.CharField()
-    vehicle_type = serializers.CharField()
-    vehicle_number = serializers.CharField()
 
     @staticmethod
     def from_rider(rider):
+
         return {
             "id": rider.id,
-            "username": rider.user.username,
+            "full_name": rider.full_name,
             "phone": rider.user.phone or "",
-            "vehicle_type": rider.vehicle_type,
-            "vehicle_number": rider.vehicle_number,
         }
+
+
+# ==========================================================
+# ORDER
+# ==========================================================
 
 
 class OrderSerializer(serializers.ModelSerializer):
@@ -105,11 +143,17 @@ class OrderSerializer(serializers.ModelSerializer):
             "customer_username",
             "assigned_rider",
             "status",
+
             "payment_method",
+            "payment_status",
+
             "delivery_phone",
             "delivery_address",
+
             "items",
+
             "total_price",
+
             "created_at",
             "updated_at",
         ]
@@ -125,6 +169,10 @@ class OrderSerializer(serializers.ModelSerializer):
             obj.assigned_rider
         )
 
+
+# ==========================================================
+# CHECKOUT
+# ==========================================================
 
 class CheckoutSerializer(serializers.Serializer):
 
@@ -145,42 +193,171 @@ class CheckoutSerializer(serializers.Serializer):
 
     def validate(self, attrs):
 
-        request = self.context["request"]
+        request = self.context.get("request")
 
-        customer = request.user.customer_profile
+        # --------------------------------------------------
+        # AUTHENTICATION CHECK
+        # --------------------------------------------------
 
-        cart = (
-            Cart.objects
-            .filter(customer=customer)
-            .prefetch_related("items__product")
-            .first()
+        if not request:
+            raise serializers.ValidationError(
+                "Request context is missing."
+            )
+
+        user = request.user
+
+        print("\n========== CHECKOUT DEBUG ==========")
+        print("USER:", user)
+        print("USER ID:", getattr(user, "id", None))
+        print(
+            "AUTHENTICATED:",
+            getattr(user, "is_authenticated", False)
         )
 
-        if not cart or not cart.items.exists():
+        if not user.is_authenticated:
+
+            print("ERROR: USER IS NOT AUTHENTICATED")
+            print("====================================\n")
+
+            raise serializers.ValidationError(
+                "Authentication required."
+            )
+
+        # --------------------------------------------------
+        # CUSTOMER PROFILE
+        # --------------------------------------------------
+
+        try:
+
+            customer = user.customer_profile
+
+        except Exception as exc:
+
+            print(
+                "CUSTOMER PROFILE ERROR:",
+                repr(exc)
+            )
+
+            print("====================================\n")
+
+            raise serializers.ValidationError(
+                "Customer profile not found."
+            )
+
+        print(
+            "CUSTOMER PROFILE ID:",
+            customer.id
+        )
+
+        # --------------------------------------------------
+        # CART
+        # --------------------------------------------------
+
+        try:
+
+            cart = (
+                Cart.objects
+                .prefetch_related(
+                    "items__product"
+                )
+                .get(
+                    customer=customer
+                )
+            )
+
+        except Cart.DoesNotExist:
+
+            print("CART DOES NOT EXIST")
+
+            print("====================================\n")
+
             raise serializers.ValidationError(
                 "Your cart is empty."
             )
 
+        # --------------------------------------------------
+        # CART ITEMS
+        # --------------------------------------------------
+
+        cart_items = list(
+            cart.items.all()
+        )
+
+        print(
+            "CART ID:",
+            cart.id
+        )
+
+        print(
+            "CART ITEM COUNT:",
+            len(cart_items)
+        )
+
+        for cart_item in cart_items:
+
+            print(
+                "CART ITEM:",
+                cart_item.id,
+                "| PRODUCT:",
+                cart_item.product_id,
+                "| QTY:",
+                cart_item.quantity,
+            )
+
+        # --------------------------------------------------
+        # EMPTY CART
+        # --------------------------------------------------
+
+        if not cart_items:
+
+            print(
+                "ERROR: CART EXISTS BUT HAS NO ITEMS"
+            )
+
+            print("====================================\n")
+
+            raise serializers.ValidationError(
+                "Your cart is empty."
+            )
+
+        # --------------------------------------------------
+        # VALIDATE PRODUCTS
+        # --------------------------------------------------
+
         problems = []
 
-        for item in cart.items.all():
+        for item in cart_items:
 
             product = item.product
 
+            if not product:
+
+                problems.append(
+                    "A product in your cart is no longer available."
+                )
+
+                continue
+
             if not product.is_active:
+
                 problems.append(
                     f"{product.name} is no longer available."
                 )
 
             elif item.quantity > product.stock:
+
                 problems.append(
                     f"Only {product.stock} of "
                     f"{product.name} left in stock."
                 )
 
+        # --------------------------------------------------
+        # DELIVERY INFORMATION
+        # --------------------------------------------------
+
         phone = (
             attrs.get("phone")
-            or request.user.phone
+            or user.phone
         )
 
         address = (
@@ -188,26 +365,68 @@ class CheckoutSerializer(serializers.Serializer):
             or customer.address
         )
 
+        print(
+            "PHONE:",
+            phone
+        )
+
+        print(
+            "ADDRESS:",
+            address
+        )
+
+        # --------------------------------------------------
+        # REQUIRED DELIVERY DATA
+        # --------------------------------------------------
+
         if not phone:
+
             problems.append(
                 "Phone number is required for delivery."
             )
 
         if not address:
+
             problems.append(
                 "Delivery address is required."
             )
 
+        # --------------------------------------------------
+        # VALIDATION ERRORS
+        # --------------------------------------------------
+
         if problems:
+
+            print(
+                "CHECKOUT PROBLEMS:",
+                problems
+            )
+
+            print("====================================\n")
+
             raise serializers.ValidationError(
                 problems
             )
+
+        # --------------------------------------------------
+        # SAVE RESOLVED DATA
+        # --------------------------------------------------
 
         attrs["cart"] = cart
         attrs["resolved_phone"] = phone
         attrs["resolved_address"] = address
 
+        print(
+            "CHECKOUT VALIDATION SUCCESS"
+        )
+
+        print("====================================\n")
+
         return attrs
+
+    # ======================================================
+    # CREATE ORDER
+    # ======================================================
 
     @transaction.atomic
     def create(self, validated_data):
@@ -216,10 +435,21 @@ class CheckoutSerializer(serializers.Serializer):
 
         request = self.context["request"]
 
-        customer = request.user.customer_profile
+        user = request.user
 
-        phone = validated_data["resolved_phone"]
-        address = validated_data["resolved_address"]
+        customer = user.customer_profile
+
+        phone = validated_data[
+            "resolved_phone"
+        ]
+
+        address = validated_data[
+            "resolved_address"
+        ]
+
+        # --------------------------------------------------
+        # CREATE ORDER
+        # --------------------------------------------------
 
         order = Order.objects.create(
             customer=customer,
@@ -230,28 +460,82 @@ class CheckoutSerializer(serializers.Serializer):
             delivery_address=address,
         )
 
-        for item in cart.items.select_related(
-            "product"
-        ):
+        # --------------------------------------------------
+        # CREATE ORDER ITEMS
+        # --------------------------------------------------
 
-            product = item.product
+        for cart_item in cart.items.all():
+
+            try:
+
+                product = (
+                    Product.objects
+                    .select_for_update()
+                    .get(
+                        pk=cart_item.product_id
+                    )
+                )
+
+            except Product.DoesNotExist:
+
+                raise serializers.ValidationError(
+                    "A product in your cart is no longer available."
+                )
+
+            # --------------------------------------------------
+            # RE-CHECK PRODUCT
+            # --------------------------------------------------
+
+            if not product.is_active:
+
+                raise serializers.ValidationError(
+                    f"{product.name} is no longer available."
+                )
+
+            if cart_item.quantity > product.stock:
+
+                raise serializers.ValidationError(
+                    f"Only {product.stock} of "
+                    f"{product.name} left in stock."
+                )
+
+            # --------------------------------------------------
+            # PRICE SNAPSHOT
+            # --------------------------------------------------
 
             OrderItem.objects.create(
                 order=order,
                 product=product,
                 product_name=product.name,
-                price_at_purchase=product.price,
-                quantity=item.quantity,
+
+                original_price_at_purchase=(
+                    product.price
+                ),
+
+                discount_percentage_at_purchase=(
+                    product.discount_percentage
+                ),
+
+                price_at_purchase=(
+                    product.discounted_price
+                ),
+
+                quantity=cart_item.quantity,
             )
 
-            product.stock -= item.quantity
+            # --------------------------------------------------
+            # REDUCE STOCK
+            # --------------------------------------------------
+
+            product.stock -= cart_item.quantity
 
             product.save(
                 update_fields=["stock"]
             )
 
-        # Save phone/address to profile if missing.
-        user = request.user
+        # --------------------------------------------------
+        # SAVE PHONE
+        # --------------------------------------------------
 
         if not user.phone:
 
@@ -261,6 +545,10 @@ class CheckoutSerializer(serializers.Serializer):
                 update_fields=["phone"]
             )
 
+        # --------------------------------------------------
+        # SAVE ADDRESS
+        # --------------------------------------------------
+
         if not customer.address:
 
             customer.address = address
@@ -269,11 +557,23 @@ class CheckoutSerializer(serializers.Serializer):
                 update_fields=["address"]
             )
 
+        # --------------------------------------------------
+        # CALCULATE ORDER TOTAL
+        # --------------------------------------------------
+
         order.recalculate_total()
+
+        # --------------------------------------------------
+        # CLEAR CART
+        # --------------------------------------------------
 
         cart.items.all().delete()
 
         return order
+
+# ==========================================================
+# ORDER STATUS
+# ==========================================================
 
 
 class OrderStatusUpdateSerializer(
@@ -288,6 +588,30 @@ class OrderStatusUpdateSerializer(
         ]
 
 
+# ==========================================================
+# RIDER ORDER STATUS
+# ==========================================================
+
+
+class RiderOrderStatusUpdateSerializer(
+    serializers.Serializer
+):
+
+    status = serializers.ChoiceField(
+        choices=Order.STATUS_CHOICES
+    )
+
+    cash_received = serializers.BooleanField(
+        required=False,
+        default=False,
+    )
+
+
+# ==========================================================
+# ASSIGN RIDER
+# ==========================================================
+
+
 class AssignRiderSerializer(serializers.Serializer):
 
     rider_id = serializers.IntegerField()
@@ -297,24 +621,24 @@ class AssignRiderSerializer(serializers.Serializer):
         from riders.models import RiderProfile
 
         try:
-            rider = RiderProfile.objects.select_related(
-                "user"
-            ).get(
-                id=value,
-                user__is_active=True,
+
+            rider = (
+                RiderProfile.objects
+                .select_related("user")
+                .get(
+                    id=value,
+                    user__is_active=True,
+                )
             )
+
         except RiderProfile.DoesNotExist:
 
             raise serializers.ValidationError(
                 "Rider not found or inactive."
             )
 
-        if rider.verification_status != "verified":
-            raise serializers.ValidationError(
-                "Rider is not verified."
-            )
-
         if rider.availability_status == "busy":
+
             raise serializers.ValidationError(
                 "Rider is currently busy."
             )

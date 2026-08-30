@@ -73,7 +73,6 @@ export default function UserMenu() {
                     </div>
                 )}
 
-                {/* Hide text on small screens */}
                 <span className="hidden lg:block font-medium text-white">
                     My Account
                 </span>
@@ -102,6 +101,7 @@ export default function UserMenu() {
                         z-50
                     "
                 >
+                    {/* Account information */}
                     <div className="border-b px-4 py-2">
                         <p className="text-xs text-gray-500">
                             Signed in as
@@ -112,6 +112,7 @@ export default function UserMenu() {
                         </p>
                     </div>
 
+                    {/* Profile */}
                     <Link
                         to="/profile"
                         onClick={() => setOpen(false)}
@@ -120,6 +121,7 @@ export default function UserMenu() {
                         My Profile
                     </Link>
 
+                    {/* Customer options */}
                     {profile?.role === "customer" && (
                         <>
                             <Link
@@ -140,6 +142,7 @@ export default function UserMenu() {
                         </>
                     )}
 
+                    {/* Seller options */}
                     {profile?.role === "seller" && (
                         <Link
                             to="/seller/dashboard"
@@ -150,6 +153,17 @@ export default function UserMenu() {
                         </Link>
                     )}
 
+                    {profile?.role === "rider" && (
+                        <Link
+                            to="/rider"
+                            onClick={() => setOpen(false)}
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition"
+                        >
+                            Rider Dashboard
+                        </Link>
+                    )}
+
+                    {/* Logout */}
                     <button
                         type="button"
                         onClick={async () => {

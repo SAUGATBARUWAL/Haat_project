@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+
 import {
     ArrowLeft,
     Heart,
@@ -8,6 +9,10 @@ import {
 } from "lucide-react";
 
 import api from "../../utils/api";
+
+import Navbar from "../../components/navbar/Navbar";
+import Footer from "../../components/footer/Footer";
+import RelatedProductsCard from "./RelatedProductCard";
 
 import { useWishlist } from "../../context/WishlistContext";
 import { useCart } from "../../context/CartContext";
@@ -18,9 +23,12 @@ export default function ProductDetail() {
     const navigate = useNavigate();
 
     const [product, setProduct] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [relatedProducts, setRelatedProducts] = useState([]);
 
-    // Image currently displayed
+    const [loading, setLoading] = useState(true);
+    const [relatedLoading, setRelatedLoading] = useState(false);
+
+    // Currently displayed image
     const [activeImage, setActiveImage] = useState(null);
 
     // Selected size
@@ -28,6 +36,9 @@ export default function ProductDetail() {
 
     // Add to cart loading state
     const [adding, setAdding] = useState(false);
+
+    // Buy now loading state
+    const [buying, setBuying] = useState(false);
 
 
     /*
@@ -75,7 +86,7 @@ export default function ProductDetail() {
                 setProduct(data);
 
                 /*
-                Select the primary image first.
+                Select primary image first.
                 If there is no primary image,
                 use the first image.
                 */
@@ -108,58 +119,212 @@ export default function ProductDetail() {
 
     /*
     ============================================================
+    FETCH RELATED PRODUCTS
+    ============================================================
+    */
+
+    useEffect(() => {
+        if (!product?.category) {
+            setRelatedProducts([]);
+            return;
+        }
+
+        async function fetchRelatedProducts() {
+            try {
+                setRelatedLoading(true);
+
+                /*
+                Category can either be:
+                - an object
+                - a category slug
+                - a category ID
+                */
+
+                const categoryValue =
+                    typeof product.category === "object"
+                        ? product.category.slug ||
+                          product.category.id ||
+                          product.category.name
+                        : product.category;
+
+                if (!categoryValue) {
+                    setRelatedProducts([]);
+                    return;
+                }
+
+                const response = await api.get(
+                    "/products/",
+                    {
+                        params: {
+                            category: categoryValue,
+                        },
+                    }
+                );
+
+                const data = response.data;
+
+                const products = Array.isArray(data)
+                    ? data
+                    : data.results || [];
+
+                /*
+                Remove the currently viewed product.
+                */
+
+                const filteredProducts =
+                    products.filter(
+                        (item) =>
+                            item.id !== product.id
+                    );
+
+                /*
+                Display maximum 4 related products.
+                */
+
+                setRelatedProducts(
+                    filteredProducts.slice(0, 4)
+                );
+
+            } catch (error) {
+                console.error(
+                    "Failed to fetch related products:",
+                    error
+                );
+
+                setRelatedProducts([]);
+
+            } finally {
+                setRelatedLoading(false);
+            }
+        }
+
+        fetchRelatedProducts();
+
+    }, [product]);
+
+
+    /*
+    ============================================================
     LOADING STATE
     ============================================================
     */
 
     if (loading) {
         return (
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+            <>
+                <Navbar />
 
-                {/* Back button skeleton */}
-
-                <div className="h-5 w-32 bg-gray-200 rounded animate-pulse" />
-
-                <div className="
-                    mt-6
-                    grid
-                    grid-cols-1
-                    lg:grid-cols-2
-                    gap-8
-                ">
-
-                    {/* Image skeleton */}
+                <main className="min-h-[70vh] bg-gray-50">
 
                     <div
                         className="
-                            h-[320px]
-                            sm:h-[420px]
-                            lg:h-[500px]
-                            rounded-2xl
-                            bg-gray-200
-                            animate-pulse
+                            mx-auto
+                            max-w-7xl
+                            px-4
+                            py-8
+                            sm:px-6
                         "
-                    />
+                    >
 
-                    {/* Details skeleton */}
+                        {/* Back button skeleton */}
 
-                    <div className="space-y-5">
+                        <div
+                            className="
+                                h-5
+                                w-32
+                                animate-pulse
+                                rounded
+                                bg-gray-200
+                            "
+                        />
 
-                        <div className="h-8 w-3/4 bg-gray-200 rounded animate-pulse" />
+                        <div
+                            className="
+                                mt-6
+                                grid
+                                grid-cols-1
+                                gap-8
+                                lg:grid-cols-2
+                            "
+                        >
 
-                        <div className="h-5 w-32 bg-gray-200 rounded animate-pulse" />
+                            {/* Image skeleton */}
 
-                        <div className="h-10 w-40 bg-gray-200 rounded animate-pulse" />
+                            <div
+                                className="
+                                    h-[320px]
+                                    animate-pulse
+                                    rounded-2xl
+                                    bg-gray-200
+                                    sm:h-[420px]
+                                    lg:h-[500px]
+                                "
+                            />
 
-                        <div className="h-24 w-full bg-gray-200 rounded animate-pulse" />
+                            {/* Details skeleton */}
 
-                        <div className="h-12 w-full bg-gray-200 rounded animate-pulse" />
+                            <div className="space-y-5">
+
+                                <div
+                                    className="
+                                        h-8
+                                        w-3/4
+                                        animate-pulse
+                                        rounded
+                                        bg-gray-200
+                                    "
+                                />
+
+                                <div
+                                    className="
+                                        h-5
+                                        w-32
+                                        animate-pulse
+                                        rounded
+                                        bg-gray-200
+                                    "
+                                />
+
+                                <div
+                                    className="
+                                        h-10
+                                        w-40
+                                        animate-pulse
+                                        rounded
+                                        bg-gray-200
+                                    "
+                                />
+
+                                <div
+                                    className="
+                                        h-24
+                                        w-full
+                                        animate-pulse
+                                        rounded
+                                        bg-gray-200
+                                    "
+                                />
+
+                                <div
+                                    className="
+                                        h-12
+                                        w-full
+                                        animate-pulse
+                                        rounded
+                                        bg-gray-200
+                                    "
+                                />
+
+                            </div>
+
+                        </div>
 
                     </div>
 
-                </div>
+                </main>
 
-            </main>
+                <Footer />
+            </>
         );
     }
 
@@ -172,54 +337,71 @@ export default function ProductDetail() {
 
     if (!product) {
         return (
-            <main className="
-                max-w-7xl
-                mx-auto
-                px-4
-                sm:px-6
-                py-20
-                text-center
-            ">
+            <>
+                <Navbar />
 
-                <h1 className="
-                    text-2xl
-                    font-bold
-                    text-gray-800
-                ">
-                    Product not found
-                </h1>
+                <main className="min-h-[70vh] bg-gray-50">
 
-                <p className="
-                    mt-2
-                    text-gray-500
-                ">
-                    The product you're looking for doesn't exist.
-                </p>
+                    <div
+                        className="
+                            mx-auto
+                            max-w-7xl
+                            px-4
+                            py-20
+                            text-center
+                            sm:px-6
+                        "
+                    >
 
-                <Link
-                    to="/products"
-                    className="
-                        inline-flex
-                        items-center
-                        gap-2
-                        mt-6
-                        px-5
-                        py-2.5
-                        rounded-lg
-                        bg-green-600
-                        text-white
-                        text-sm
-                        font-medium
-                        hover:bg-green-700
-                        transition
-                    "
-                >
-                    <ArrowLeft size={17} />
+                        <h1
+                            className="
+                                text-2xl
+                                font-bold
+                                text-gray-800
+                            "
+                        >
+                            Product not found
+                        </h1>
 
-                    Back to Products
-                </Link>
+                        <p
+                            className="
+                                mt-2
+                                text-gray-500
+                            "
+                        >
+                            The product you're looking for
+                            doesn't exist.
+                        </p>
 
-            </main>
+                        <Link
+                            to="/products"
+                            className="
+                                mt-6
+                                inline-flex
+                                items-center
+                                gap-2
+                                rounded-lg
+                                bg-green-600
+                                px-5
+                                py-2.5
+                                text-sm
+                                font-medium
+                                text-white
+                                transition
+                                hover:bg-green-700
+                            "
+                        >
+                            <ArrowLeft size={17} />
+
+                            Back to Products
+                        </Link>
+
+                    </div>
+
+                </main>
+
+                <Footer />
+            </>
         );
     }
 
@@ -238,6 +420,10 @@ export default function ProductDetail() {
     const isOutOfStock =
         product.stock <= 0;
 
+    const requiresSize =
+        product.sizes &&
+        product.sizes.length > 0;
+
 
     /*
     ============================================================
@@ -246,7 +432,6 @@ export default function ProductDetail() {
     */
 
     const handleWishlistClick = () => {
-
         if (!canWishlist) {
             navigate("/login");
             return;
@@ -258,12 +443,27 @@ export default function ProductDetail() {
 
     /*
     ============================================================
+    SIZE VALIDATION
+    ============================================================
+    */
+
+    const validateSize = () => {
+        if (requiresSize && !selectedSize) {
+            alert("Please select a size first.");
+            return false;
+        }
+
+        return true;
+    };
+
+
+    /*
+    ============================================================
     ADD TO CART
     ============================================================
     */
 
     const handleAddToCart = async () => {
-
         if (!canCart) {
             navigate("/login");
             return;
@@ -273,11 +473,23 @@ export default function ProductDetail() {
             return;
         }
 
+        if (!validateSize()) {
+            return;
+        }
+
         setAdding(true);
+
+        /*
+        If your addToCart function currently only accepts
+        product ID and quantity, change this to:
+
+        addToCart(product.id, 1)
+        */
 
         const result = await addToCart(
             product.id,
-            1
+            1,
+            selectedSize
         );
 
         setAdding(false);
@@ -294,517 +506,937 @@ export default function ProductDetail() {
 
     /*
     ============================================================
+    BUY NOW
+    ============================================================
+    */
+
+    const handleBuyNow = () => {
+        if (!canCart) {
+            navigate("/login");
+            return;
+        }
+
+        if (isOutOfStock || buying) {
+            return;
+        }
+
+        if (!validateSize()) {
+            return;
+        }
+
+        setBuying(true);
+
+        /*
+        Buy Now does NOT add the product to the cart.
+
+        Instead, it sends the product information
+        directly to the checkout page.
+        */
+
+        navigate("/checkout", {
+            state: {
+                productId: product.id,
+                quantity: 1,
+                selectedSize: selectedSize,
+                buyNow: true,
+            },
+        });
+    };
+
+
+    /*
+    ============================================================
+    CATEGORY VALUE FOR VIEW ALL
+    ============================================================
+    */
+
+    const categoryValue =
+        typeof product.category === "object"
+            ? product.category.slug ||
+              product.category.id ||
+              product.category.name
+            : product.category;
+
+
+    /*
+    ============================================================
     UI
     ============================================================
     */
 
     return (
-        <main className="
-            max-w-7xl
-            mx-auto
-            px-4
-            sm:px-6
-            py-6
-            sm:py-8
-        ">
+        <>
+            <Navbar />
 
-            {/* ==================================================
-                BACK TO PRODUCTS
-            ================================================== */}
+            <main className="min-h-screen bg-gray-50">
 
-            <Link
-                to="/products"
-                className="
-                    inline-flex
-                    items-center
-                    gap-2
-                    text-sm
-                    font-medium
-                    text-gray-600
-                    hover:text-green-700
-                    transition
-                "
-            >
-                <ArrowLeft size={18} />
+                <div
+                    className="
+                        mx-auto
+                        max-w-7xl
+                        px-4
+                        py-6
+                        sm:px-6
+                        sm:py-8
+                    "
+                >
 
-                Back to Products
-            </Link>
+                    {/* ==================================================
+                        BACK TO PRODUCTS
+                    ================================================== */}
 
+                    <Link
+                        to="/products"
+                        className="
+                            inline-flex
+                            items-center
+                            gap-2
+                            text-sm
+                            font-medium
+                            text-gray-600
+                            transition
+                            hover:text-green-700
+                        "
+                    >
+                        <ArrowLeft size={18} />
 
-            {/* ==================================================
-                PRODUCT CARD
-            ================================================== */}
-
-            <section
-                className="
-                    mt-5
-                    bg-white
-                    border
-                    border-gray-100
-                    rounded-2xl
-                    shadow-lg
-                    overflow-hidden
-                "
-            >
-
-                <div className="
-                    grid
-                    grid-cols-1
-                    lg:grid-cols-2
-                    gap-6
-                    sm:gap-8
-                    p-4
-                    sm:p-6
-                    lg:p-8
-                ">
+                        Back to Products
+                    </Link>
 
 
                     {/* ==================================================
-                        LEFT SIDE — IMAGE GALLERY
+                        PRODUCT CARD
                     ================================================== */}
 
-                    <div>
-
-                        {/* Main Image */}
+                    <section
+                        className="
+                            mt-5
+                            overflow-hidden
+                            rounded-2xl
+                            border
+                            border-gray-100
+                            bg-white
+                            shadow-lg
+                        "
+                    >
 
                         <div
                             className="
-                                relative
-                                h-[300px]
-                                sm:h-[400px]
-                                lg:h-[500px]
-                                rounded-2xl
-                                overflow-hidden
-                                bg-gray-100
+                                grid
+                                grid-cols-1
+                                gap-6
+                                p-4
+                                sm:gap-8
+                                sm:p-6
+                                lg:grid-cols-2
+                                lg:p-8
                             "
                         >
 
-                            {activeImage ? (
+                            {/* ==================================================
+                                LEFT SIDE — IMAGE GALLERY
+                            ================================================== */}
 
-                                <img
-                                    src={activeImage.image}
-                                    alt={
-                                        activeImage.label ||
-                                        product.name
-                                    }
+                            <div>
+
+                                {/* Main Image */}
+
+                                <div
                                     className="
-                                        w-full
-                                        h-full
-                                        object-cover
+                                        relative
+                                        h-[300px]
+                                        overflow-hidden
+                                        rounded-2xl
+                                        bg-gray-100
+                                        sm:h-[400px]
+                                        lg:h-[500px]
                                     "
-                                />
+                                >
 
-                            ) : (
-
-                                <div className="
-                                    flex
-                                    items-center
-                                    justify-center
-                                    h-full
-                                    text-gray-400
-                                    text-sm
-                                ">
-                                    No Image
-                                </div>
-
-                            )}
-
-
-                            {/* Stock Badge */}
-
-                            <span
-                                className={`
-                                    absolute
-                                    left-3
-                                    sm:left-4
-                                    top-3
-                                    sm:top-4
-                                    rounded-full
-                                    px-3
-                                    py-1.5
-                                    text-xs
-                                    font-semibold
-                                    ${
-                                        isOutOfStock
-                                            ? "bg-red-100 text-red-600"
-                                            : "bg-green-100 text-green-700"
-                                    }
-                                `}
-                            >
-                                {isOutOfStock
-                                    ? "Out of Stock"
-                                    : "In Stock"}
-                            </span>
-
-                        </div>
-
-
-                        {/* ==================================================
-                            IMAGE THUMBNAILS
-                        ================================================== */}
-
-                        {images.length > 1 && (
-
-                            <div className="
-                                flex
-                                gap-3
-                                mt-3
-                                overflow-x-auto
-                                pb-1
-                            ">
-
-                                {images.map((image) => (
-
-                                    <button
-                                        key={image.id}
-                                        type="button"
-                                        onClick={() =>
-                                            setActiveImage(image)
-                                        }
-                                        className={`
-                                            flex-shrink-0
-                                            w-16
-                                            h-16
-                                            sm:w-20
-                                            sm:h-20
-                                            rounded-xl
-                                            overflow-hidden
-                                            border-2
-                                            transition
-                                            ${
-                                                activeImage?.id ===
-                                                image.id
-                                                    ? "border-green-600"
-                                                    : "border-gray-200 hover:border-green-300"
-                                            }
-                                        `}
-                                    >
-
+                                    {activeImage ? (
                                         <img
-                                            src={image.image}
+                                            src={
+                                                activeImage.image
+                                            }
                                             alt={
-                                                image.label ||
+                                                activeImage.label ||
                                                 product.name
                                             }
                                             className="
-                                                w-full
                                                 h-full
+                                                w-full
                                                 object-cover
                                             "
+                                        />
+                                    ) : (
+                                        <div
+                                            className="
+                                                flex
+                                                h-full
+                                                items-center
+                                                justify-center
+                                                text-sm
+                                                text-gray-400
+                                            "
+                                        >
+                                            No Image
+                                        </div>
+                                    )}
+
+
+                                    {/* Stock Badge */}
+
+                                    <span
+                                        className={`
+                                            absolute
+                                            left-3
+                                            top-3
+                                            rounded-full
+                                            px-3
+                                            py-1.5
+                                            text-xs
+                                            font-semibold
+                                            sm:left-4
+                                            sm:top-4
+                                            ${
+                                                isOutOfStock
+                                                    ? "bg-red-100 text-red-600"
+                                                    : "bg-green-100 text-green-700"
+                                            }
+                                        `}
+                                    >
+                                        {isOutOfStock
+                                            ? "Out of Stock"
+                                            : "In Stock"}
+                                    </span>
+
+                                </div>
+
+
+                                {/* ==================================================
+                                    IMAGE THUMBNAILS
+                                ================================================== */}
+
+                                {images.length > 1 && (
+                                    <div
+                                        className="
+                                            mt-3
+                                            flex
+                                            gap-3
+                                            overflow-x-auto
+                                            pb-1
+                                        "
+                                    >
+
+                                        {images.map(
+                                            (image) => (
+                                                <button
+                                                    key={
+                                                        image.id
+                                                    }
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setActiveImage(
+                                                            image
+                                                        )
+                                                    }
+                                                    className={`
+                                                        h-16
+                                                        w-16
+                                                        flex-shrink-0
+                                                        overflow-hidden
+                                                        rounded-xl
+                                                        border-2
+                                                        transition
+                                                        sm:h-20
+                                                        sm:w-20
+                                                        ${
+                                                            activeImage?.id ===
+                                                            image.id
+                                                                ? "border-green-600"
+                                                                : "border-gray-200 hover:border-green-300"
+                                                        }
+                                                    `}
+                                                >
+
+                                                    <img
+                                                        src={
+                                                            image.image
+                                                        }
+                                                        alt={
+                                                            image.label ||
+                                                            product.name
+                                                        }
+                                                        className="
+                                                            h-full
+                                                            w-full
+                                                            object-cover
+                                                        "
+                                                    />
+
+                                                </button>
+                                            )
+                                        )}
+
+                                    </div>
+                                )}
+
+                            </div>
+
+
+                            {/* ==================================================
+                                RIGHT SIDE — PRODUCT INFORMATION
+                            ================================================== */}
+
+                            <div className="flex flex-col">
+
+                                {/* Category */}
+
+                                {product.category && (
+                                    <p
+                                        className="
+                                            text-sm
+                                            font-medium
+                                            text-green-600
+                                        "
+                                    >
+                                        {product.category.name ||
+                                            product.category}
+                                    </p>
+                                )}
+
+
+                                {/* Product Name + Wishlist */}
+
+                                <div
+                                    className="
+                                        mt-2
+                                        flex
+                                        items-start
+                                        justify-between
+                                        gap-4
+                                    "
+                                >
+
+                                    <h1
+                                        className="
+                                            text-2xl
+                                            font-bold
+                                            leading-tight
+                                            text-gray-800
+                                            sm:text-3xl
+                                        "
+                                    >
+                                        {product.name}
+                                    </h1>
+
+
+                                    {/* Wishlist */}
+
+                                    <button
+                                        type="button"
+                                        onClick={
+                                            handleWishlistClick
+                                        }
+                                        className="
+                                            flex
+                                            h-10
+                                            w-10
+                                            flex-shrink-0
+                                            items-center
+                                            justify-center
+                                            rounded-full
+                                            border
+                                            border-gray-200
+                                            bg-white
+                                            transition
+                                            hover:scale-105
+                                            hover:border-green-300
+                                            hover:bg-green-50
+                                            sm:h-11
+                                            sm:w-11
+                                        "
+                                    >
+
+                                        <Heart
+                                            size={20}
+                                            fill={
+                                                isWishlisted
+                                                    ? "#dc2626"
+                                                    : "none"
+                                            }
+                                            className={
+                                                isWishlisted
+                                                    ? "text-red-600"
+                                                    : "text-gray-600"
+                                            }
                                         />
 
                                     </button>
 
-                                ))}
+                                </div>
+
+
+                                {/* Rating */}
+
+                                <div
+                                    className="
+                                        mt-3
+                                        flex
+                                        items-center
+                                        gap-2
+                                    "
+                                >
+
+                                    <div
+                                        className="
+                                            flex
+                                            items-center
+                                            gap-1
+                                        "
+                                    >
+
+                                        <Star
+                                            size={17}
+                                            fill="#FACC15"
+                                            className="text-yellow-400"
+                                        />
+
+                                        <span
+                                            className="
+                                                text-sm
+                                                font-medium
+                                                text-gray-700
+                                            "
+                                        >
+                                            4.8
+                                        </span>
+
+                                    </div>
+
+                                    <span
+                                        className="
+                                            text-sm
+                                            text-gray-400
+                                        "
+                                    >
+                                        (25 Reviews)
+                                    </span>
+
+                                </div>
+
+
+                                {/* ==================================================
+                                    SELLER
+                                ================================================== */}
+
+                                {product.seller && (
+                                    <Link
+                                        to={`/sellers/${product.seller.id}`}
+                                        className="
+                                            group
+                                            mt-5
+                                            inline-flex
+                                            w-fit
+                                            items-center
+                                            gap-3
+                                        "
+                                    >
+
+                                        {product.seller.profile_picture && (
+                                            <img
+                                                src={
+                                                    product
+                                                        .seller
+                                                        .profile_picture
+                                                }
+                                                alt={
+                                                    product
+                                                        .seller
+                                                        .business_name
+                                                }
+                                                className="
+                                                    h-9
+                                                    w-9
+                                                    rounded-full
+                                                    object-cover
+                                                "
+                                            />
+                                        )}
+
+                                        <div>
+
+                                            <p
+                                                className="
+                                                    text-xs
+                                                    text-gray-400
+                                                "
+                                            >
+                                                Sold by
+                                            </p>
+
+                                            <p
+                                                className="
+                                                    text-sm
+                                                    font-semibold
+                                                    text-gray-700
+                                                    transition
+                                                    group-hover:text-green-700
+                                                "
+                                            >
+                                                {
+                                                    product
+                                                        .seller
+                                                        .business_name
+                                                }
+                                            </p>
+
+                                        </div>
+
+                                    </Link>
+                                )}
+
+
+                                {/* ==================================================
+                                    PRICE
+                                ================================================== */}
+
+                                <p
+                                    className="
+                                        mt-5
+                                        text-3xl
+                                        font-bold
+                                        text-green-700
+                                    "
+                                >
+                                    Rs. {product.price}
+                                </p>
+
+
+                                {/* ==================================================
+                                    DESCRIPTION
+                                ================================================== */}
+
+                                <div
+                                    className="
+                                        mt-5
+                                        border-t
+                                        border-gray-100
+                                        pt-5
+                                    "
+                                >
+
+                                    <h2
+                                        className="
+                                            text-sm
+                                            font-semibold
+                                            text-gray-800
+                                        "
+                                    >
+                                        Description
+                                    </h2>
+
+                                    <p
+                                        className="
+                                            mt-2
+                                            text-sm
+                                            leading-6
+                                            text-gray-600
+                                        "
+                                    >
+                                        {product.description ||
+                                            "No description available."}
+                                    </p>
+
+                                </div>
+
+
+                                {/* ==================================================
+                                    SIZE SELECTION
+                                ================================================== */}
+
+                                {requiresSize && (
+                                    <div className="mt-5">
+
+                                        <p
+                                            className="
+                                                mb-3
+                                                text-sm
+                                                font-semibold
+                                                text-gray-800
+                                            "
+                                        >
+                                            Select Size
+                                        </p>
+
+                                        <div
+                                            className="
+                                                flex
+                                                flex-wrap
+                                                gap-2
+                                            "
+                                        >
+
+                                            {product.sizes.map(
+                                                (size) => (
+                                                    <button
+                                                        key={
+                                                            size.id
+                                                        }
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setSelectedSize(
+                                                                size.id
+                                                            )
+                                                        }
+                                                        className={`
+                                                            rounded-lg
+                                                            border
+                                                            px-4
+                                                            py-2
+                                                            text-sm
+                                                            font-medium
+                                                            transition
+                                                            ${
+                                                                selectedSize ===
+                                                                size.id
+                                                                    ? "border-green-600 bg-green-600 text-white"
+                                                                    : "border-gray-200 bg-white text-gray-700 hover:border-green-400 hover:text-green-700"
+                                                            }
+                                                        `}
+                                                    >
+                                                        {
+                                                            size.label
+                                                        }
+                                                    </button>
+                                                )
+                                            )}
+
+                                        </div>
+
+                                    </div>
+                                )}
+
+
+                                {/* ==================================================
+                                    PURCHASE ACTIONS
+                                ================================================== */}
+
+                                <div
+                                    className="
+                                        mt-6
+                                        flex
+                                        flex-col
+                                        gap-3
+                                        sm:mt-8
+                                        sm:flex-row
+                                    "
+                                >
+
+                                    {/* ADD TO CART */}
+
+                                    <button
+                                        type="button"
+                                        onClick={
+                                            handleAddToCart
+                                        }
+                                        disabled={
+                                            adding ||
+                                            isOutOfStock
+                                        }
+                                        className="
+                                            flex
+                                            w-full
+                                            items-center
+                                            justify-center
+                                            gap-2
+                                            rounded-xl
+                                            border
+                                            border-green-600
+                                            bg-white
+                                            py-3
+                                            text-sm
+                                            font-semibold
+                                            text-green-700
+                                            transition
+                                            hover:bg-green-50
+                                            hover:shadow-md
+                                            disabled:cursor-not-allowed
+                                            disabled:opacity-50
+                                        "
+                                    >
+
+                                        <ShoppingCart
+                                            size={19}
+                                        />
+
+                                        {adding
+                                            ? "Adding..."
+                                            : isOutOfStock
+                                            ? "Out of Stock"
+                                            : "Add to Cart"}
+
+                                    </button>
+
+
+                                    {/* BUY NOW */}
+
+                                    <button
+                                        type="button"
+                                        onClick={
+                                            handleBuyNow
+                                        }
+                                        disabled={
+                                            buying ||
+                                            isOutOfStock
+                                        }
+                                        className="
+                                            flex
+                                            w-full
+                                            items-center
+                                            justify-center
+                                            gap-2
+                                            rounded-xl
+                                            bg-green-600
+                                            py-3
+                                            text-sm
+                                            font-semibold
+                                            text-white
+                                            transition
+                                            hover:bg-green-700
+                                            hover:shadow-lg
+                                            disabled:cursor-not-allowed
+                                            disabled:opacity-50
+                                        "
+                                    >
+
+                                        {buying
+                                            ? "Processing..."
+                                            : isOutOfStock
+                                            ? "Out of Stock"
+                                            : "Buy Now"}
+
+                                    </button>
+
+                                </div>
 
                             </div>
 
-                        )}
+                        </div>
 
-                    </div>
+                    </section>
 
 
                     {/* ==================================================
-                        RIGHT SIDE — PRODUCT INFORMATION
+                        RELATED PRODUCTS
                     ================================================== */}
 
-                    <div className="flex flex-col">
+                    <section className="mt-12 sm:mt-16">
 
+                        {/* Section Header */}
 
-                        {/* Category */}
-
-                        {product.category && (
-
-                            <p className="
-                                text-sm
-                                font-medium
-                                text-green-600
-                            ">
-                                {product.category.name ||
-                                    product.category}
-                            </p>
-
-                        )}
-
-
-                        {/* Product Name + Wishlist */}
-
-                        <div className="
-                            mt-2
-                            flex
-                            items-start
-                            justify-between
-                            gap-4
-                        ">
-
-                            <h1 className="
-                                text-2xl
-                                sm:text-3xl
-                                font-bold
-                                text-gray-800
-                                leading-tight
-                            ">
-                                {product.name}
-                            </h1>
-
-
-                            {/* ONE Wishlist Button */}
-
-                            <button
-                                type="button"
-                                onClick={
-                                    handleWishlistClick
-                                }
-                                className="
-                                    flex-shrink-0
-                                    w-10
-                                    h-10
-                                    sm:w-11
-                                    sm:h-11
-                                    rounded-full
-                                    border
-                                    border-gray-200
-                                    bg-white
-                                    flex
-                                    items-center
-                                    justify-center
-                                    transition
-                                    hover:bg-green-50
-                                    hover:border-green-300
-                                    hover:scale-105
-                                "
-                            >
-
-                                <Heart
-                                    size={20}
-                                    fill={
-                                        isWishlisted
-                                            ? "#dc2626"
-                                            : "none"
-                                    }
-                                    className={
-                                        isWishlisted
-                                            ? "text-red-600"
-                                            : "text-gray-600"
-                                    }
-                                />
-
-                            </button>
-
-                        </div>
-
-
-                        {/* Rating */}
-
-                        <div className="
-                            flex
-                            items-center
-                            gap-2
-                            mt-3
-                        ">
-
-                            <div className="
+                        <div
+                            className="
+                                mb-6
                                 flex
-                                items-center
-                                gap-1
-                            ">
+                                items-end
+                                justify-between
+                                gap-4
+                            "
+                        >
 
-                                <Star
-                                    size={17}
-                                    fill="#FACC15"
-                                    className="text-yellow-400"
-                                />
+                            <div>
 
-                                <span className="
-                                    text-sm
-                                    font-medium
-                                    text-gray-700
-                                ">
-                                    4.8
-                                </span>
-
-                            </div>
-
-                            <span className="
-                                text-sm
-                                text-gray-400
-                            ">
-                                (25 Reviews)
-                            </span>
-
-                        </div>
-
-
-                        {/* ==================================================
-                            SELLER
-                        ================================================== */}
-
-                        {product.seller && (
-
-                            <Link
-                                to={`/sellers/${product.seller.id}`}
-                                className="
-                                    inline-flex
-                                    items-center
-                                    gap-3
-                                    mt-5
-                                    w-fit
-                                    group
-                                "
-                            >
-
-                                {product.seller.profile_picture && (
-
-                                    <img
-                                        src={
-                                            product.seller
-                                                .profile_picture
-                                        }
-                                        alt={
-                                            product.seller
-                                                .business_name
-                                        }
-                                        className="
-                                            w-9
-                                            h-9
-                                            rounded-full
-                                            object-cover
-                                        "
-                                    />
-
-                                )}
-
-                                <div>
-
-                                    <p className="
-                                        text-xs
-                                        text-gray-400
-                                    ">
-                                        Sold by
-                                    </p>
-
-                                    <p className="
+                                <p
+                                    className="
                                         text-sm
-                                        font-semibold
-                                        text-gray-700
-                                        group-hover:text-green-700
-                                        transition
-                                    ">
-                                        {
-                                            product.seller
-                                                .business_name
-                                        }
-                                    </p>
-
-                                </div>
-
-                            </Link>
-
-                        )}
-
-
-                        {/* ==================================================
-                            PRICE
-                        ================================================== */}
-
-                        <p className="
-                            mt-5
-                            text-3xl
-                            font-bold
-                            text-green-700
-                        ">
-                            Rs. {product.price}
-                        </p>
-
-
-                        {/* ==================================================
-                            DESCRIPTION
-                        ================================================== */}
-
-                        <div className="
-                            mt-5
-                            pt-5
-                            border-t
-                            border-gray-100
-                        ">
-
-                            <h2 className="
-                                text-sm
-                                font-semibold
-                                text-gray-800
-                            ">
-                                Description
-                            </h2>
-
-                            <p className="
-                                mt-2
-                                text-sm
-                                leading-6
-                                text-gray-600
-                            ">
-                                {product.description ||
-                                    "No description available."}
-                            </p>
-
-                        </div>
-
-
-                        {/* ==================================================
-                            SIZE SELECTION
-                        ================================================== */}
-
-                        {product.sizes &&
-                            product.sizes.length > 0 && (
-
-                            <div className="mt-5">
-
-                                <p className="
-                                    text-sm
-                                    font-semibold
-                                    text-gray-800
-                                    mb-3
-                                ">
-                                    Select Size
+                                        font-medium
+                                        text-green-600
+                                    "
+                                >
+                                    You may also like
                                 </p>
 
-                                <div className="
-                                    flex
-                                    flex-wrap
-                                    gap-2
-                                ">
+                                <h2
+                                    className="
+                                        mt-1
+                                        text-2xl
+                                        font-bold
+                                        text-gray-900
+                                        sm:text-3xl
+                                    "
+                                >
+                                    Related Products
+                                </h2>
 
-                                    {product.sizes.map(
-                                        (size) => (
+                            </div>
 
-                                        <button
-                                            key={size.id}
-                                            type="button"
-                                            onClick={() =>
-                                                setSelectedSize(
-                                                    size.id
-                                                )
-                                            }
-                                            className={`
-                                                px-4
-                                                py-2
-                                                rounded-lg
-                                                border
-                                                text-sm
-                                                font-medium
-                                                transition
-                                                ${
-                                                    selectedSize ===
-                                                    size.id
-                                                        ? "bg-green-600 text-white border-green-600"
-                                                        : "bg-white text-gray-700 border-gray-200 hover:border-green-400 hover:text-green-700"
-                                                }
-                                            `}
+
+                            {/* Desktop View All */}
+
+                            {product.category &&
+                                relatedProducts.length > 0 && (
+                                    <Link
+                                        to={`/products?category=${encodeURIComponent(
+                                            categoryValue
+                                        )}`}
+                                        className="
+                                            hidden
+                                            text-sm
+                                            font-semibold
+                                            text-green-600
+                                            transition
+                                            hover:text-green-700
+                                            sm:inline-flex
+                                        "
+                                    >
+                                        View All
+                                    </Link>
+                                )}
+
+                        </div>
+
+
+                        {/* ==================================================
+                            RELATED PRODUCTS LOADING
+                        ================================================== */}
+
+                        {relatedLoading ? (
+
+                            <div
+                                className="
+                                    grid
+                                    grid-cols-1
+                                    gap-6
+                                    sm:grid-cols-2
+                                    lg:grid-cols-4
+                                "
+                            >
+
+                                {Array.from({
+                                    length: 4,
+                                }).map(
+                                    (_, index) => (
+                                        <div
+                                            key={index}
+                                            className="
+                                                overflow-hidden
+                                                rounded-2xl
+                                                bg-white
+                                                shadow-sm
+                                            "
                                         >
-                                            {size.label}
-                                        </button>
 
-                                    ))}
-                                </div>
+                                            <div
+                                                className="
+                                                    h-56
+                                                    animate-pulse
+                                                    bg-gray-200
+                                                "
+                                            />
+
+                                            <div
+                                                className="
+                                                    space-y-3
+                                                    p-4
+                                                "
+                                            >
+
+                                                <div
+                                                    className="
+                                                        h-4
+                                                        w-3/4
+                                                        animate-pulse
+                                                        rounded
+                                                        bg-gray-200
+                                                    "
+                                                />
+
+                                                <div
+                                                    className="
+                                                        h-4
+                                                        w-1/2
+                                                        animate-pulse
+                                                        rounded
+                                                        bg-gray-200
+                                                    "
+                                                />
+
+                                                <div
+                                                    className="
+                                                        h-6
+                                                        w-1/3
+                                                        animate-pulse
+                                                        rounded
+                                                        bg-gray-200
+                                                    "
+                                                />
+
+                                            </div>
+
+                                        </div>
+                                    )
+                                )}
+
+                            </div>
+
+                        ) : relatedProducts.length > 0 ? (
+
+                            /* ==================================================
+                                RELATED PRODUCTS GRID
+                            ================================================== */
+
+                            <div
+                                className="
+                                    grid
+                                    grid-cols-1
+                                    gap-6
+                                    sm:grid-cols-2
+                                    lg:grid-cols-4
+                                "
+                            >
+
+                                {relatedProducts.map(
+                                    (relatedProduct) => (
+                                        <RelatedProductsCard
+                                            key={
+                                                relatedProduct.id
+                                            }
+                                            product={
+                                                relatedProduct
+                                            }
+                                        />
+                                    )
+                                )}
+
+                            </div>
+
+                        ) : (
+
+                            /* ==================================================
+                                NO RELATED PRODUCTS
+                            ================================================== */
+
+                            <div
+                                className="
+                                    rounded-2xl
+                                    border
+                                    border-gray-100
+                                    bg-white
+                                    p-8
+                                    text-center
+                                "
+                            >
+
+                                <p
+                                    className="
+                                        text-sm
+                                        text-gray-500
+                                    "
+                                >
+                                    No related products
+                                    available right now.
+                                </p>
 
                             </div>
 
@@ -812,59 +1444,52 @@ export default function ProductDetail() {
 
 
                         {/* ==================================================
-                            ADD TO CART
+                            MOBILE VIEW ALL
                         ================================================== */}
 
-                        <div className="
-                            mt-6
-                            sm:mt-8
-                        ">
+                        {product.category &&
+                            relatedProducts.length > 0 && (
+                                <div
+                                    className="
+                                        mt-6
+                                        text-center
+                                        sm:hidden
+                                    "
+                                >
 
-                            <button
-                                type="button"
-                                onClick={handleAddToCart}
-                                disabled={
-                                    adding ||
-                                    isOutOfStock
-                                }
-                                className="
-                                    w-full
-                                    flex
-                                    items-center
-                                    justify-center
-                                    gap-2
-                                    rounded-xl
-                                    bg-green-600
-                                    py-3
-                                    text-sm
-                                    font-semibold
-                                    text-white
-                                    transition
-                                    hover:bg-green-700
-                                    hover:shadow-lg
-                                    disabled:cursor-not-allowed
-                                    disabled:opacity-50
-                                "
-                            >
+                                    <Link
+                                        to={`/products?category=${encodeURIComponent(
+                                            categoryValue
+                                        )}`}
+                                        className="
+                                            inline-flex
+                                            items-center
+                                            justify-center
+                                            rounded-xl
+                                            border
+                                            border-green-600
+                                            px-5
+                                            py-2.5
+                                            text-sm
+                                            font-semibold
+                                            text-green-700
+                                            transition
+                                            hover:bg-green-50
+                                        "
+                                    >
+                                        View All Related Products
+                                    </Link>
 
-                                <ShoppingCart size={19} />
+                                </div>
+                            )}
 
-                                {adding
-                                    ? "Adding..."
-                                    : isOutOfStock
-                                    ? "Out of Stock"
-                                    : "Add to Cart"}
-
-                            </button>
-
-                        </div>
-
-                    </div>
+                    </section>
 
                 </div>
 
-            </section>
+            </main>
 
-        </main>
+            <Footer />
+        </>
     );
 }

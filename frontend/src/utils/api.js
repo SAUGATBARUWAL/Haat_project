@@ -6,6 +6,7 @@ const API_BASE_URL =
 const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true,
+    timeout: 10000, // 10s — prevents requests from hanging forever
 });
 
 let isRefreshing = false;
@@ -36,6 +37,12 @@ api.interceptors.response.use(
 
     async (error) => {
         const originalRequest = error.config;
+
+        // originalRequest can be undefined if the request timed out
+        // before axios ever built a config (rare, but guard anyway).
+        if (!originalRequest) {
+            return Promise.reject(error);
+        }
 
         if (
             error.response?.status === 401 &&

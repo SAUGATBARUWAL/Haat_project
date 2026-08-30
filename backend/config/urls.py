@@ -27,7 +27,7 @@ urlpatterns = [
     path('api/wishlist/', include('wishlist.urls')),
     path('api/cart/', include('cart.urls')),
     path('api/orders/', include('orders.urls')),
-    path('riders/', include('riders.urls')),
+    path('api/riders/', include('riders.urls')),
 
     # Payments later
     # path('api/payments/', include('payments.urls')),

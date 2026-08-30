@@ -7,10 +7,8 @@ import {
     Tag,
     Ruler,
     Image as ImageIcon,
-    Plus,
     X,
     Save,
-    Store,
 } from "lucide-react";
 
 import api from "../../utils/api";
@@ -22,7 +20,6 @@ export default function AddProduct({ onCreated }) {
     const [categories, setCategories] = useState([]);
     const [selectedCategories, setSelectedCategories] = useState([]);
     const [categoryInput, setCategoryInput] = useState("");
-    const [categoryError, setCategoryError] = useState("");
 
     // ---------------- Product ----------------
     const [name, setName] = useState("");
@@ -46,85 +43,107 @@ export default function AddProduct({ onCreated }) {
     const [errors, setErrors] = useState({});
     const [success, setSuccess] = useState(false);
 
-    // ---------------- Load categories ----------------
+    // =========================================================
+    // LOAD CATEGORIES
+    // =========================================================
+
     useEffect(() => {
-        api.get("/products/categories/")
-            .then((res) => setCategories(res.data))
-            .catch(() => setCategories([]));
+        let mounted = true;
+
+        async function loadCategories() {
+            try {
+                const res = await api.get("/products/categories/");
+
+                if (mounted) {
+                    setCategories(res.data?.results || res.data || []);
+                }
+            } catch (err) {
+                if (mounted) {
+                    setCategories([]);
+                }
+            }
+        }
+
+        loadCategories();
+
+        return () => {
+            mounted = false;
+        };
     }, []);
 
-    // ---------------- Cleanup previews ----------------
+    // =========================================================
+    // CLEANUP IMAGE PREVIEWS
+    // =========================================================
+
     useEffect(() => {
         return () => {
-            previews.forEach((url) => URL.revokeObjectURL(url));
+            previews.forEach((url) => {
+                URL.revokeObjectURL(url);
+            });
         };
     }, [previews]);
 
-    // ---------------- Categories ----------------
-    async function addCategoryFromInput() {
-        const typed = categoryInput.trim();
+    // =========================================================
+    // CATEGORIES
+    // =========================================================
 
-        if (!typed) return;
-
-        setCategoryError("");
-
-        const existing = categories.find(
-            (c) => c.name.toLowerCase() === typed.toLowerCase()
-        );
-
-        if (existing) {
-            if (!selectedCategories.includes(existing.slug)) {
-                setSelectedCategories((prev) => [
-                    ...prev,
-                    existing.slug,
-                ]);
+    function toggleCategory(slug) {
+        setSelectedCategories((prev) => {
+            if (prev.includes(slug)) {
+                return prev.filter((item) => item !== slug);
             }
 
-            setCategoryInput("");
-            return;
-        }
-
-        try {
-            const res = await api.post(
-                "/products/categories/create/",
-                {
-                    name: typed,
-                }
-            );
-
-            const created = res.data;
-
-            setCategories((prev) => [...prev, created]);
-            setSelectedCategories((prev) => [
-                ...prev,
-                created.slug,
-            ]);
-            setCategoryInput("");
-        } catch (err) {
-            if (err.response) {
-                setCategoryError(
-                    err.response.data?.name?.[0] ||
-                        "Could not add category."
-                );
-            } else {
-                setCategoryError(
-                    "Could not reach the server."
-                );
-            }
-        }
+            return [...prev, slug];
+        });
     }
 
     function removeCategory(slug) {
         setSelectedCategories((prev) =>
-            prev.filter((s) => s !== slug)
+            prev.filter((item) => item !== slug)
         );
     }
 
-    // ---------------- Sizes ----------------
+    function addCategoryFromInput() {
+        const typed = categoryInput.trim();
+
+        if (!typed) return;
+
+        const existing = categories.find(
+            (category) =>
+                category.name.toLowerCase() === typed.toLowerCase()
+        );
+
+        if (!existing) {
+            setErrors((prev) => ({
+                ...prev,
+                categories: "Please select a category from the available categories.",
+            }));
+            return;
+        }
+
+        setErrors((prev) => ({
+            ...prev,
+            categories: null,
+        }));
+
+        if (!selectedCategories.includes(existing.slug)) {
+            setSelectedCategories((prev) => [
+                ...prev,
+                existing.slug,
+            ]);
+        }
+
+        setCategoryInput("");
+    }
+
+    // =========================================================
+    // SIZES
+    // =========================================================
+
     function toggleSize(label) {
         setSizes((prev) =>
             prev.includes(label)
-                ? prev.filter((s) => s !== label)
+                ? prev.filter((size) => size !== label)
                 : [...prev, label]
         );
     }
@@ -132,22 +151,35 @@ export default function AddProduct({ onCreated }) {
     function addCustomSize() {
         const label = customSize.trim();
 
-        if (label && !sizes.includes(label)) {
+        if (!label) return;
+
+        const exists = sizes.some(
+            (size) => size.toLowerCase() === label.toLowerCase()
+        );
+
+        if (!exists) {
             setSizes((prev) => [...prev, label]);
         }
 
         setCustomSize("");
     }
 
-    // ---------------- Images ----------------
+    // =========================================================
+    // IMAGES
+    // =========================================================
+
     function handleFileSelect(e) {
         const files = Array.from(e.target.files || []);
+
+        if (!files.length) return;
 
         if (images.length + files.length > 8) {
             setErrors((prev) => ({
                 ...prev,
                 images: "You can upload up to 8 images.",
             }));
+
+            e.target.value = "";
             return;
         }
 
@@ -156,13 +188,15 @@ export default function AddProduct({ onCreated }) {
             images: null,
         }));
 
+        const newPreviews = files.map((file) =>
+            URL.createObjectURL(file)
+        );
+
         setImages((prev) => [...prev, ...files]);
 
         setPreviews((prev) => [
             ...prev,
-            ...files.map((file) =>
-                URL.createObjectURL(file)
-            ),
+            ...newPreviews,
         ]);
 
         setImageLabels((prev) => [
@@ -174,15 +208,19 @@ export default function AddProduct({ onCreated }) {
     }
 
     function removeImage(index) {
+        const previewToRemove = previews[index];
+
+        if (previewToRemove) {
+            URL.revokeObjectURL(previewToRemove);
+        }
+
         setImages((prev) =>
             prev.filter((_, i) => i !== index)
         );
 
-        setPreviews((prev) => {
-            URL.revokeObjectURL(prev[index]);
-
-            return prev.filter((_, i) => i !== index);
-        });
+        setPreviews((prev) =>
+            prev.filter((_, i) => i !== index)
+        );
 
         setImageLabels((prev) =>
             prev.filter((_, i) => i !== index)
@@ -190,18 +228,34 @@ export default function AddProduct({ onCreated }) {
     }
 
     function setPrimary(index) {
-        const reorder = (arr) => {
-            const copy = [...arr];
-            const [item] = copy.splice(index, 1);
+        if (index === 0) return;
 
-            copy.unshift(item);
+        setImages((prev) => {
+            const copy = [...prev];
+            const [selected] = copy.splice(index, 1);
+
+            copy.unshift(selected);
 
             return copy;
-        };
+        });
 
-        setImages((prev) => reorder(prev));
-        setPreviews((prev) => reorder(prev));
-        setImageLabels((prev) => reorder(prev));
+        setPreviews((prev) => {
+            const copy = [...prev];
+            const [selected] = copy.splice(index, 1);
+
+            copy.unshift(selected);
+
+            return copy;
+        });
+
+        setImageLabels((prev) => {
+            const copy = [...prev];
+            const [selected] = copy.splice(index, 1);
+
+            copy.unshift(selected);
+
+            return copy;
+        });
     }
 
     function updateImageLabel(index, value) {
@@ -212,7 +266,10 @@ export default function AddProduct({ onCreated }) {
         );
     }
 
-    // ---------------- Validation ----------------
+    // =========================================================
+    // VALIDATION
+    // =========================================================
+
     function validate() {
         const next = {};
 
@@ -221,21 +278,23 @@ export default function AddProduct({ onCreated }) {
         }
 
         if (!price || Number(price) <= 0) {
-            next.price =
-                "Enter a price greater than zero.";
+            next.price = "Enter a price greater than zero.";
         }
 
         if (
             stock === "" ||
-            Number(stock) < 0
+            Number(stock) < 0 ||
+            !Number.isInteger(Number(stock))
         ) {
-            next.stock =
-                "Enter a valid stock quantity.";
+            next.stock = "Enter a valid stock quantity.";
         }
 
         if (images.length === 0) {
-            next.images =
-                "Add at least one product image.";
+            next.images = "Add at least one product image.";
+        }
+
+        if (images.length > 8) {
+            next.images = "You can upload up to 8 images.";
         }
 
         setErrors(next);
@@ -243,36 +302,42 @@ export default function AddProduct({ onCreated }) {
         return Object.keys(next).length === 0;
     }
 
-    // ---------------- Submit ----------------
+    // =========================================================
+    // SUBMIT
+    // =========================================================
+
     async function handleSubmit(e) {
         e.preventDefault();
 
         setSuccess(false);
 
-        if (!validate()) return;
+        if (!validate()) {
+            return;
+        }
 
         const formData = new FormData();
 
         formData.append("name", name.trim());
-        formData.append(
-            "description",
-            description.trim()
-        );
+        formData.append("description", description.trim());
         formData.append("price", price);
         formData.append("stock", stock);
 
+        // Categories
         selectedCategories.forEach((slug) => {
             formData.append("categories", slug);
         });
 
+        // Sizes
         sizes.forEach((label) => {
             formData.append("size_labels", label);
         });
 
+        // Images
         images.forEach((file) => {
             formData.append("uploaded_images", file);
         });
 
+        // Image labels
         imageLabels.forEach((label) => {
             formData.append("image_labels", label);
         });
@@ -296,11 +361,15 @@ export default function AddProduct({ onCreated }) {
             }
         } catch (err) {
             if (err.response) {
-                setErrors(
-                    err.response.data || {
-                        form: "Something went wrong.",
-                    }
-                );
+                const responseData = err.response.data;
+
+                setErrors({
+                    ...responseData,
+                    form:
+                        responseData?.detail ||
+                        responseData?.non_field_errors?.[0] ||
+                        "Could not create the product.",
+                });
             } else {
                 setErrors({
                     form:
@@ -312,8 +381,15 @@ export default function AddProduct({ onCreated }) {
         }
     }
 
-    // ---------------- Reset ----------------
+    // =========================================================
+    // RESET
+    // =========================================================
+
     function resetForm() {
+        previews.forEach((url) => {
+            URL.revokeObjectURL(url);
+        });
+
         setName("");
         setDescription("");
         setPrice("");
@@ -321,19 +397,20 @@ export default function AddProduct({ onCreated }) {
 
         setSelectedCategories([]);
         setCategoryInput("");
-        setCategoryError("");
 
         setSizes([]);
         setCustomSize("");
 
-        previews.forEach((url) =>
-            URL.revokeObjectURL(url)
-        );
-
         setImages([]);
         setPreviews([]);
         setImageLabels([]);
+
+        setErrors({});
     }
+
+    // =========================================================
+    // RENDER
+    // =========================================================
 
     return (
         <div className="w-full max-w-4xl mx-auto">
@@ -352,26 +429,28 @@ export default function AddProduct({ onCreated }) {
             <form
                 onSubmit={handleSubmit}
                 className="
+                    overflow-hidden
                     rounded-2xl
-                    bg-white
-                    shadow-lg
                     border
                     border-gray-100
-                    overflow-hidden
+                    bg-white
+                    shadow-lg
                 "
             >
                 {/* Card Header */}
                 <div className="flex items-center gap-3 border-b border-gray-100 px-6 py-5 sm:px-8">
-                    <div className="
-                        flex
-                        h-11
-                        w-11
-                        items-center
-                        justify-center
-                        rounded-xl
-                        bg-green-50
-                        text-green-600
-                    ">
+                    <div
+                        className="
+                            flex
+                            h-11
+                            w-11
+                            items-center
+                            justify-center
+                            rounded-xl
+                            bg-green-50
+                            text-green-600
+                        "
+                    >
                         <Package size={22} />
                     </div>
 
@@ -389,39 +468,48 @@ export default function AddProduct({ onCreated }) {
                 <div className="px-6 py-6 sm:px-8">
                     {/* General Error */}
                     {errors.form && (
-                        <div className="
-                            mb-6
-                            rounded-lg
-                            border
-                            border-red-200
-                            bg-red-50
-                            px-4
-                            py-3
-                        ">
+                        <div
+                            className="
+                                mb-6
+                                rounded-lg
+                                border
+                                border-red-200
+                                bg-red-50
+                                px-4
+                                py-3
+                            "
+                        >
                             <p className="text-sm text-red-600">
-                                {errors.form}
+                                {Array.isArray(errors.form)
+                                    ? errors.form.join(", ")
+                                    : errors.form}
                             </p>
                         </div>
                     )}
 
                     {/* Success */}
                     {success && (
-                        <div className="
-                            mb-6
-                            rounded-lg
-                            border
-                            border-green-200
-                            bg-green-50
-                            px-4
-                            py-3
-                        ">
+                        <div
+                            className="
+                                mb-6
+                                rounded-lg
+                                border
+                                border-green-200
+                                bg-green-50
+                                px-4
+                                py-3
+                            "
+                        >
                             <p className="text-sm text-green-600">
                                 Product created successfully.
                             </p>
                         </div>
                     )}
 
-                    {/* Basic Information */}
+                    {/* ================================================= */}
+                    {/* BASIC INFORMATION */}
+                    {/* ================================================= */}
+
                     <div className="mb-8">
                         <div className="mb-5 flex items-center gap-2">
                             <FileText
@@ -437,13 +525,15 @@ export default function AddProduct({ onCreated }) {
                         <div className="space-y-5">
                             {/* Product Name */}
                             <div>
-                                <label className="
-                                    mb-2
-                                    block
-                                    text-sm
-                                    font-medium
-                                    text-gray-700
-                                ">
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-gray-700
+                                    "
+                                >
                                     Product Name
                                 </label>
 
@@ -476,20 +566,24 @@ export default function AddProduct({ onCreated }) {
 
                                 {errors.name && (
                                     <p className="mt-1 text-xs text-red-600">
-                                        {errors.name}
+                                        {Array.isArray(errors.name)
+                                            ? errors.name.join(", ")
+                                            : errors.name}
                                     </p>
                                 )}
                             </div>
 
                             {/* Description */}
                             <div>
-                                <label className="
-                                    mb-2
-                                    block
-                                    text-sm
-                                    font-medium
-                                    text-gray-700
-                                ">
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-gray-700
+                                    "
+                                >
                                     Description
                                 </label>
 
@@ -522,11 +616,22 @@ export default function AddProduct({ onCreated }) {
                                         disabled:bg-gray-100
                                     "
                                 />
+
+                                {errors.description && (
+                                    <p className="mt-1 text-xs text-red-600">
+                                        {Array.isArray(errors.description)
+                                            ? errors.description.join(", ")
+                                            : errors.description}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
 
-                    {/* Price & Stock */}
+                    {/* ================================================= */}
+                    {/* PRICE & STOCK */}
+                    {/* ================================================= */}
+
                     <div className="mb-8">
                         <div className="mb-5 flex items-center gap-2">
                             <DollarSign
@@ -539,34 +644,40 @@ export default function AddProduct({ onCreated }) {
                             </h3>
                         </div>
 
-                        <div className="
-                            grid
-                            grid-cols-1
-                            gap-5
-                            sm:grid-cols-2
-                        ">
+                        <div
+                            className="
+                                grid
+                                grid-cols-1
+                                gap-5
+                                sm:grid-cols-2
+                            "
+                        >
                             {/* Price */}
                             <div>
-                                <label className="
-                                    mb-2
-                                    block
-                                    text-sm
-                                    font-medium
-                                    text-gray-700
-                                ">
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-gray-700
+                                    "
+                                >
                                     Price
                                 </label>
 
                                 <div className="relative">
-                                    <span className="
-                                        absolute
-                                        left-3
-                                        top-1/2
-                                        -translate-y-1/2
-                                        text-sm
-                                        font-medium
-                                        text-gray-400
-                                    ">
+                                    <span
+                                        className="
+                                            absolute
+                                            left-3
+                                            top-1/2
+                                            -translate-y-1/2
+                                            text-sm
+                                            font-medium
+                                            text-gray-400
+                                        "
+                                    >
                                         Rs.
                                     </span>
 
@@ -604,20 +715,24 @@ export default function AddProduct({ onCreated }) {
 
                                 {errors.price && (
                                     <p className="mt-1 text-xs text-red-600">
-                                        {errors.price}
+                                        {Array.isArray(errors.price)
+                                            ? errors.price.join(", ")
+                                            : errors.price}
                                     </p>
                                 )}
                             </div>
 
                             {/* Stock */}
                             <div>
-                                <label className="
-                                    mb-2
-                                    block
-                                    text-sm
-                                    font-medium
-                                    text-gray-700
-                                ">
+                                <label
+                                    className="
+                                        mb-2
+                                        block
+                                        text-sm
+                                        font-medium
+                                        text-gray-700
+                                    "
+                                >
                                     Stock Quantity
                                 </label>
 
@@ -667,14 +782,19 @@ export default function AddProduct({ onCreated }) {
 
                                 {errors.stock && (
                                     <p className="mt-1 text-xs text-red-600">
-                                        {errors.stock}
+                                        {Array.isArray(errors.stock)
+                                            ? errors.stock.join(", ")
+                                            : errors.stock}
                                     </p>
                                 )}
                             </div>
                         </div>
                     </div>
 
-                    {/* Categories */}
+                    {/* ================================================= */}
+                    {/* CATEGORIES */}
+                    {/* ================================================= */}
+
                     <div className="mb-8">
                         <div className="mb-5 flex items-center gap-2">
                             <Tag
@@ -687,15 +807,64 @@ export default function AddProduct({ onCreated }) {
                             </h3>
                         </div>
 
-                        {/* Selected */}
+                        {/* Available categories */}
+                        {categories.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {categories.map((category) => {
+                                    const selected =
+                                        selectedCategories.includes(
+                                            category.slug
+                                        );
+
+                                    return (
+                                        <button
+                                            key={category.slug}
+                                            type="button"
+                                            onClick={() =>
+                                                toggleCategory(
+                                                    category.slug
+                                                )
+                                            }
+                                            disabled={submitting}
+                                            className={`
+                                                rounded-lg
+                                                border
+                                                px-4
+                                                py-2
+                                                text-sm
+                                                font-medium
+                                                transition
+                                                ${
+                                                    selected
+                                                        ? "border-green-600 bg-green-600 text-white"
+                                                        : "border-gray-200 bg-white text-gray-700 hover:border-green-400 hover:text-green-600"
+                                                }
+                                            `}
+                                        >
+                                            {category.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">
+                                No categories available.
+                            </p>
+                        )}
+
+                        {/* Selected categories */}
                         {selectedCategories.length > 0 && (
-                            <div className="mb-3 flex flex-wrap gap-2">
-                                {selectedCategories.map(
-                                    (slug) => {
-                                        const cat =
+                            <div className="mt-4">
+                                <p className="mb-2 text-xs font-medium text-gray-500">
+                                    Selected categories
+                                </p>
+
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedCategories.map((slug) => {
+                                        const category =
                                             categories.find(
-                                                (c) =>
-                                                    c.slug ===
+                                                (item) =>
+                                                    item.slug ===
                                                     slug
                                             );
 
@@ -715,9 +884,7 @@ export default function AddProduct({ onCreated }) {
                                                     text-green-700
                                                 "
                                             >
-                                                {cat
-                                                    ? cat.name
-                                                    : slug}
+                                                {category?.name || slug}
 
                                                 <button
                                                     type="button"
@@ -727,98 +894,32 @@ export default function AddProduct({ onCreated }) {
                                                         )
                                                     }
                                                     className="hover:text-red-500"
+                                                    disabled={
+                                                        submitting
+                                                    }
                                                 >
                                                     <X size={14} />
                                                 </button>
                                             </span>
                                         );
-                                    }
-                                )}
+                                    })}
+                                </div>
                             </div>
                         )}
 
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                list="category-suggestions"
-                                value={categoryInput}
-                                onChange={(e) =>
-                                    setCategoryInput(
-                                        e.target.value
-                                    )
-                                }
-                                onKeyDown={(e) => {
-                                    if (
-                                        e.key === "Enter" ||
-                                        e.key === ","
-                                    ) {
-                                        e.preventDefault();
-                                        addCategoryFromInput();
-                                    }
-                                }}
-                                placeholder="Type a category, e.g. Electronics"
-                                disabled={submitting}
-                                className="
-                                    min-w-0
-                                    flex-1
-                                    rounded-lg
-                                    border
-                                    border-gray-200
-                                    px-3
-                                    py-2.5
-                                    text-sm
-                                    outline-none
-                                    transition
-                                    focus:border-green-500
-                                    focus:ring-2
-                                    focus:ring-green-100
-                                "
-                            />
-
-                            <button
-                                type="button"
-                                onClick={
-                                    addCategoryFromInput
-                                }
-                                disabled={submitting}
-                                className="
-                                    inline-flex
-                                    items-center
-                                    gap-1.5
-                                    rounded-lg
-                                    bg-green-600
-                                    px-4
-                                    py-2.5
-                                    text-sm
-                                    font-medium
-                                    text-white
-                                    transition
-                                    hover:bg-green-700
-                                    disabled:opacity-50
-                                "
-                            >
-                                <Plus size={16} />
-                                Add
-                            </button>
-                        </div>
-
-                        <datalist id="category-suggestions">
-                            {categories.map((c) => (
-                                <option
-                                    key={c.slug}
-                                    value={c.name}
-                                />
-                            ))}
-                        </datalist>
-
-                        {categoryError && (
-                            <p className="mt-1 text-xs text-red-600">
-                                {categoryError}
+                        {errors.categories && (
+                            <p className="mt-2 text-xs text-red-600">
+                                {Array.isArray(errors.categories)
+                                    ? errors.categories.join(", ")
+                                    : errors.categories}
                             </p>
                         )}
                     </div>
 
-                    {/* Sizes */}
+                    {/* ================================================= */}
+                    {/* SIZES */}
+                    {/* ================================================= */}
+
                     <div className="mb-8">
                         <div className="mb-5 flex items-center gap-2">
                             <Ruler
@@ -853,9 +954,7 @@ export default function AddProduct({ onCreated }) {
                                         font-medium
                                         transition
                                         ${
-                                            sizes.includes(
-                                                label
-                                            )
+                                            sizes.includes(label)
                                                 ? "border-green-600 bg-green-600 text-white"
                                                 : "border-gray-200 bg-white text-gray-700 hover:border-green-400 hover:text-green-600"
                                         }
@@ -877,9 +976,7 @@ export default function AddProduct({ onCreated }) {
                                     )
                                 }
                                 onKeyDown={(e) => {
-                                    if (
-                                        e.key === "Enter"
-                                    ) {
+                                    if (e.key === "Enter") {
                                         e.preventDefault();
                                         addCustomSize();
                                     }
@@ -915,8 +1012,9 @@ export default function AddProduct({ onCreated }) {
                                     text-sm
                                     font-medium
                                     text-gray-700
-                                    hover:bg-gray-50
                                     transition
+                                    hover:bg-gray-50
+                                    disabled:opacity-50
                                 "
                             >
                                 Add
@@ -925,15 +1023,15 @@ export default function AddProduct({ onCreated }) {
 
                         {/* Custom sizes */}
                         {sizes.filter(
-                            (s) =>
-                                !COMMON_SIZES.includes(s)
+                            (size) =>
+                                !COMMON_SIZES.includes(size)
                         ).length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-2">
                                 {sizes
                                     .filter(
-                                        (s) =>
+                                        (size) =>
                                             !COMMON_SIZES.includes(
-                                                s
+                                                size
                                             )
                                     )
                                     .map((label) => (
@@ -961,10 +1059,12 @@ export default function AddProduct({ onCreated }) {
                                                         label
                                                     )
                                                 }
+                                                disabled={
+                                                    submitting
+                                                }
+                                                className="hover:text-red-500"
                                             >
-                                                <X
-                                                    size={14}
-                                                />
+                                                <X size={14} />
                                             </button>
                                         </span>
                                     ))}
@@ -972,7 +1072,10 @@ export default function AddProduct({ onCreated }) {
                         )}
                     </div>
 
-                    {/* Images */}
+                    {/* ================================================= */}
+                    {/* IMAGES */}
+                    {/* ================================================= */}
+
                     <div className="mb-8">
                         <div className="mb-2 flex items-center gap-2">
                             <ImageIcon
@@ -986,48 +1089,44 @@ export default function AddProduct({ onCreated }) {
                         </div>
 
                         <p className="mb-5 text-xs text-gray-500">
-                            Add up to 8 images. The first
-                            image will be used as the cover
-                            photo.
+                            Add up to 8 images. The first image
+                            will be used as the cover photo.
                         </p>
 
                         <div className="flex flex-wrap gap-4">
-                            {previews.map(
-                                (url, index) => (
-                                    <div
-                                        key={url}
-                                        className="flex flex-col gap-2"
-                                    >
-                                        <div className="relative">
-                                            <img
-                                                src={url}
-                                                alt={`Product ${
-                                                    index + 1
-                                                }`}
-                                                onClick={() =>
-                                                    setPrimary(
-                                                        index
-                                                    )
+                            {previews.map((url, index) => (
+                                <div
+                                    key={url}
+                                    className="flex flex-col gap-2"
+                                >
+                                    <div className="relative">
+                                        <img
+                                            src={url}
+                                            alt={`Product ${
+                                                index + 1
+                                            }`}
+                                            onClick={() =>
+                                                setPrimary(index)
+                                            }
+                                            className={`
+                                                h-24
+                                                w-24
+                                                cursor-pointer
+                                                rounded-xl
+                                                border-2
+                                                object-cover
+                                                transition
+                                                ${
+                                                    index === 0
+                                                        ? "border-green-600"
+                                                        : "border-gray-200 hover:border-green-400"
                                                 }
-                                                className={`
-                                                    h-24
-                                                    w-24
-                                                    cursor-pointer
-                                                    rounded-xl
-                                                    object-cover
-                                                    border-2
-                                                    transition
-                                                    ${
-                                                        index ===
-                                                        0
-                                                            ? "border-green-600"
-                                                            : "border-gray-200 hover:border-green-400"
-                                                    }
-                                                `}
-                                            />
+                                            `}
+                                        />
 
-                                            {index === 0 && (
-                                                <span className="
+                                        {index === 0 && (
+                                            <span
+                                                className="
                                                     absolute
                                                     -top-2
                                                     left-1/2
@@ -1039,74 +1138,76 @@ export default function AddProduct({ onCreated }) {
                                                     text-[10px]
                                                     font-medium
                                                     text-white
-                                                ">
-                                                    Cover
-                                                </span>
-                                            )}
-
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    removeImage(
-                                                        index
-                                                    )
-                                                }
-                                                className="
-                                                    absolute
-                                                    -right-2
-                                                    -top-2
-                                                    flex
-                                                    h-6
-                                                    w-6
-                                                    items-center
-                                                    justify-center
-                                                    rounded-full
-                                                    border
-                                                    border-gray-200
-                                                    bg-white
-                                                    text-gray-500
-                                                    shadow-sm
-                                                    hover:text-red-500
                                                 "
                                             >
-                                                <X size={14} />
-                                            </button>
-                                        </div>
+                                                Cover
+                                            </span>
+                                        )}
 
-                                        <input
-                                            type="text"
-                                            value={
-                                                imageLabels[
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                removeImage(
                                                     index
-                                                ] || ""
-                                            }
-                                            onChange={(e) =>
-                                                updateImageLabel(
-                                                    index,
-                                                    e.target
-                                                        .value
                                                 )
                                             }
-                                            placeholder="e.g. Red"
                                             disabled={
                                                 submitting
                                             }
                                             className="
-                                                w-24
-                                                rounded-lg
+                                                absolute
+                                                -right-2
+                                                -top-2
+                                                flex
+                                                h-6
+                                                w-6
+                                                items-center
+                                                justify-center
+                                                rounded-full
                                                 border
                                                 border-gray-200
-                                                px-2
-                                                py-1.5
-                                                text-xs
-                                                text-center
-                                                outline-none
-                                                focus:border-green-500
+                                                bg-white
+                                                text-gray-500
+                                                shadow-sm
+                                                hover:text-red-500
+                                                disabled:opacity-50
                                             "
-                                        />
+                                        >
+                                            <X size={14} />
+                                        </button>
                                     </div>
-                                )
-                            )}
+
+                                    <input
+                                        type="text"
+                                        value={
+                                            imageLabels[
+                                                index
+                                            ] || ""
+                                        }
+                                        onChange={(e) =>
+                                            updateImageLabel(
+                                                index,
+                                                e.target.value
+                                            )
+                                        }
+                                        placeholder="e.g. Red"
+                                        maxLength={50}
+                                        disabled={submitting}
+                                        className="
+                                            w-24
+                                            rounded-lg
+                                            border
+                                            border-gray-200
+                                            px-2
+                                            py-1.5
+                                            text-center
+                                            text-xs
+                                            outline-none
+                                            focus:border-green-500
+                                        "
+                                    />
+                                </div>
+                            ))}
 
                             {/* Add Image */}
                             {images.length < 8 && (
@@ -1133,9 +1234,12 @@ export default function AddProduct({ onCreated }) {
                                         hover:border-green-400
                                         hover:bg-green-50
                                         hover:text-green-600
+                                        disabled:opacity-50
                                     "
                                 >
-                                    <Plus size={22} />
+                                    <span className="text-xl">
+                                        +
+                                    </span>
 
                                     <span className="text-xs">
                                         Add Image
@@ -1155,21 +1259,28 @@ export default function AddProduct({ onCreated }) {
 
                         {errors.images && (
                             <p className="mt-2 text-xs text-red-600">
-                                {errors.images}
+                                {Array.isArray(errors.images)
+                                    ? errors.images.join(", ")
+                                    : errors.images}
                             </p>
                         )}
                     </div>
 
-                    {/* Divider */}
+                    {/* ================================================= */}
+                    {/* FOOTER */}
+                    {/* ================================================= */}
+
                     <div className="border-t border-gray-100 pt-6">
-                        <div className="
-                            flex
-                            flex-col-reverse
-                            gap-3
-                            sm:flex-row
-                            sm:justify-end
-                        ">
-                            {/* Reset */}
+                        <div
+                            className="
+                                flex
+                                flex-col-reverse
+                                gap-3
+                                sm:flex-row
+                                sm:justify-end
+                            "
+                        >
+                            {/* Clear */}
                             <button
                                 type="button"
                                 onClick={resetForm}
@@ -1216,15 +1327,17 @@ export default function AddProduct({ onCreated }) {
                             >
                                 {submitting ? (
                                     <>
-                                        <span className="
-                                            h-4
-                                            w-4
-                                            animate-spin
-                                            rounded-full
-                                            border-2
-                                            border-white
-                                            border-t-transparent
-                                        " />
+                                        <span
+                                            className="
+                                                h-4
+                                                w-4
+                                                animate-spin
+                                                rounded-full
+                                                border-2
+                                                border-white
+                                                border-t-transparent
+                                            "
+                                        />
 
                                         Creating Product...
                                     </>
