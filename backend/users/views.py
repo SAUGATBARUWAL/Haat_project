@@ -85,25 +85,46 @@ class CustomerRegisterView(CreateAPIView):
 class SellerRegisterView(CreateAPIView):
     serializer_class = SellerRegisterSerializer
     queryset = User.objects.all()
+
+
+    # Required for profile picture and business document uploads
     parser_classes = [MultiPartParser, FormParser]
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        serializer = self.get_serializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
 
         user = serializer.save()
 
         response = Response(
             {
-                "message": "Seller registered successfully. Verification pending.",
+                "message": (
+                    "Seller registered successfully. "
+                    "Verification pending."
+                ),
                 "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "verification_status": (
+                    user.seller_profile.verification_status
+                ),
             },
             status=status.HTTP_201_CREATED,
         )
 
-        set_auth_cookies(response, user)
+        # Automatically log in the newly registered seller
+        set_auth_cookies(
+            response,
+            user
+        )
 
         return response
+
 
 
 class CustomerDeliveryDetailsView(RetrieveUpdateAPIView):

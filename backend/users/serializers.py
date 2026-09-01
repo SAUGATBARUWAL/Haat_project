@@ -53,42 +53,56 @@ class CustomerRegisterSerializer(serializers.ModelSerializer):
 
         return user
 
-
 class SellerRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
-        min_length=8,
-        write_only=True,
-        required=True,
-        style={"input_type": "password"}
+    min_length=8,
+    write_only=True,
+    required=True,
+    style={"input_type": "password"}
     )
+
+    
     business_name = serializers.CharField(required=True)
     pan_number = serializers.CharField(required=True)
     business_address = serializers.CharField(required=True)
+
     profile_picture = serializers.ImageField(
         required=False,
         allow_null=True,
         write_only=True
     )
+
     business_document = serializers.FileField(
         required=True,
-        allow_null=False
+        allow_null=False,
+        write_only=True
     )
 
     class Meta:
         model = User
         fields = [
-            'business_name',
-            'pan_number',
-            'business_address',
-            'profile_picture',
-            'business_document',
-            'verification_status',
-            'created_at',
-            'phone',
+            "username",
+            "email",
+            "password",
+            "phone",
+            "business_name",
+            "pan_number",
+            "business_address",
+            "profile_picture",
+            "business_document",
         ]
+
         extra_kwargs = {
-            "email": {"required": True},
-            "phone": {"required": True, "allow_blank": False},
+            "username": {
+                "required": True,
+            },
+            "email": {
+                "required": True,
+            },
+            "phone": {
+                "required": True,
+                "allow_blank": False,
+            },
         }
 
     def validate_email(self, value):
@@ -96,14 +110,23 @@ class SellerRegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "A user with this email already exists."
             )
+
+        return value
+
+    def validate_username(self, value):
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError(
+                "A user with this username already exists."
+            )
+
         return value
 
     def validate_pan_number(self, value):
-        # Nepal PAN number must be exactly 9 digits
         if not value.isdigit() or len(value) != 9:
             raise serializers.ValidationError(
                 "PAN number must be exactly 9 digits."
             )
+
         return value
 
     def create(self, validated_data):
@@ -114,6 +137,8 @@ class SellerRegisterSerializer(serializers.ModelSerializer):
         business_document = validated_data.pop("business_document")
 
         with transaction.atomic():
+
+            # Create seller user
             user = User.objects.create_user(
                 username=validated_data["username"],
                 email=validated_data["email"],
@@ -122,39 +147,62 @@ class SellerRegisterSerializer(serializers.ModelSerializer):
                 role="seller",
             )
 
-            seller_profile_kwargs = {
+            seller_profile_data = {
                 "user": user,
                 "business_name": business_name,
                 "pan_number": pan_number,
                 "business_address": business_address,
             }
 
+            # Upload optional profile picture
             if profile_picture:
                 profile_picture_url = upload_image(
                     profile_picture,
                     profile_picture.name,
                     folder=f"/users/profile-pictures/{user.id}"
                 )
+
                 if not profile_picture_url:
                     raise serializers.ValidationError(
-                        {"profile_picture": "Failed to upload image. Please try again."}
+                        {
+                            "profile_picture":
+                            "Failed to upload profile picture. Please try again."
+                        }
                     )
-                seller_profile_kwargs["profile_picture"] = profile_picture_url
 
+                seller_profile_data[
+                    "profile_picture"
+                ] = profile_picture_url
+
+            # Upload required business document
             business_document_url = upload_image(
                 business_document,
                 business_document.name,
                 folder=f"/users/business-documents/{user.id}"
             )
+
             if not business_document_url:
                 raise serializers.ValidationError(
-                    {"business_document": "Failed to upload business document. Please try again."}
+                    {
+                        "business_document":
+                        "Failed to upload business document. Please try again."
+                    }
                 )
-            seller_profile_kwargs["business_document"] = business_document_url
 
-            SellerProfile.objects.create(**seller_profile_kwargs)
+            seller_profile_data[
+                "business_document"
+            ] = business_document_url
+
+            # Create seller profile
+            SellerProfile.objects.create(
+                **seller_profile_data
+            )
 
         return user
+
+
+
+
 
 
 class CustomerDeliveryDetailsSerializer(serializers.ModelSerializer):

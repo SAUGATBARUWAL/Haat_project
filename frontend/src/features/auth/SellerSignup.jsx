@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -39,15 +40,13 @@ function SellerSignup() {
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
 
-    /*
-     * Handle input changes
-     */
+    // -----------------------------------------
+    // Handle input changes
+    // -----------------------------------------
     const handleChange = (e) => {
         const { name, value, files } = e.target;
 
-        /*
-         * File inputs
-         */
+        // File input
         if (files) {
             const file = files[0];
 
@@ -66,6 +65,7 @@ function SellerSignup() {
             setErrors((prev) => ({
                 ...prev,
                 [name]: null,
+                general: null,
             }));
 
             setFormData((prev) => ({
@@ -76,110 +76,119 @@ function SellerSignup() {
             return;
         }
 
-        /*
-         * Phone number
-         * Only allow digits.
-         */
+        // Phone number
         if (name === "phone") {
             const digitsOnly = value
                 .replace(/\D/g, "")
                 .slice(0, 15);
 
-            setErrors((prev) => ({
-                ...prev,
-                [name]: null,
-            }));
-
             setFormData((prev) => ({
                 ...prev,
                 [name]: digitsOnly,
             }));
 
+            setErrors((prev) => ({
+                ...prev,
+                [name]: null,
+                general: null,
+            }));
+
             return;
         }
 
-        /*
-         * PAN number
-         * Only allow digits and maximum 9 characters.
-         */
+        // PAN number
         if (name === "pan_number") {
             const digitsOnly = value
                 .replace(/\D/g, "")
                 .slice(0, 9);
 
-            setErrors((prev) => ({
-                ...prev,
-                [name]: null,
-            }));
-
             setFormData((prev) => ({
                 ...prev,
                 [name]: digitsOnly,
             }));
 
+            setErrors((prev) => ({
+                ...prev,
+                [name]: null,
+                general: null,
+            }));
+
             return;
         }
 
-        /*
-         * Normal inputs
-         */
-        setErrors((prev) => ({
-            ...prev,
-            [name]: null,
-        }));
-
+        // Normal inputs
         setFormData((prev) => ({
             ...prev,
             [name]: value,
         }));
+
+        setErrors((prev) => ({
+            ...prev,
+            [name]: null,
+            general: null,
+        }));
     };
 
-    /*
-     * Validate form before sending it to Django.
-     */
+    // -----------------------------------------
+    // Validate form
+    // -----------------------------------------
     const validate = () => {
         const newErrors = {};
 
-        if (!formData.username.trim()) {
+        const username = formData.username.trim();
+        const email = formData.email.trim();
+        const businessName = formData.business_name.trim();
+        const panNumber = formData.pan_number.trim();
+        const businessAddress =
+            formData.business_address.trim();
+
+        if (!username) {
             newErrors.username = "Username is required.";
         }
 
-        if (!formData.email.trim()) {
+        if (!email) {
             newErrors.email = "Email is required.";
+        } else if (
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+        ) {
+            newErrors.email = "Enter a valid email address.";
         }
 
-        if (formData.password.length < 8) {
+        if (!formData.password) {
+            newErrors.password = "Password is required.";
+        } else if (formData.password.length < 8) {
             newErrors.password =
                 "Password must be at least 8 characters.";
         }
 
-        if (
-            formData.password !==
-            formData.confirmPassword
+        if (!formData.confirmPassword) {
+            newErrors.confirmPassword =
+                "Please confirm your password.";
+        } else if (
+            formData.password !== formData.confirmPassword
         ) {
             newErrors.confirmPassword =
                 "Passwords do not match.";
         }
 
-        if (
-            !formData.phone ||
-            formData.phone.length < 7
-        ) {
+        if (!formData.phone) {
+            newErrors.phone = "Phone number is required.";
+        } else if (formData.phone.length < 7) {
             newErrors.phone =
                 "Phone number must be at least 7 digits.";
         }
 
-        if (!formData.business_name.trim()) {
+        if (!businessName) {
             newErrors.business_name =
                 "Business name is required.";
         }
 
-        if (!/^\d{9}$/.test(formData.pan_number.trim())) {
+        if (!/^\d{9}$/.test(panNumber)) {
             newErrors.pan_number =
                 "PAN number must be exactly 9 digits.";
         }
 
-        if (!formData.business_address.trim()) {
+        if (!businessAddress) {
             newErrors.business_address =
                 "Business address is required.";
         }
@@ -194,9 +203,9 @@ function SellerSignup() {
         return Object.keys(newErrors).length === 0;
     };
 
-    /*
-     * Extract useful error message from Django.
-     */
+    // -----------------------------------------
+    // Extract backend error
+    // -----------------------------------------
     const extractErrorMessage = (data) => {
         if (!data) {
             return "Registration failed. Please try again.";
@@ -219,19 +228,23 @@ function SellerSignup() {
         if (firstKey) {
             const value = data[firstKey];
 
-            const text = Array.isArray(value)
-                ? value[0]
-                : value;
+            if (Array.isArray(value)) {
+                return `${firstKey}: ${value[0]}`;
+            }
 
-            return `${firstKey}: ${text}`;
+            if (typeof value === "object" && value !== null) {
+                return `${firstKey}: ${JSON.stringify(value)}`;
+            }
+
+            return `${firstKey}: ${value}`;
         }
 
         return "Registration failed. Please try again.";
     };
 
-    /*
-     * Submit registration.
-     */
+    // -----------------------------------------
+    // Submit registration
+    // -----------------------------------------
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -244,20 +257,17 @@ function SellerSignup() {
         setLoading(true);
 
         try {
-            /*
-             * FormData is required because we are
-             * uploading images/files.
-             */
             const data = new FormData();
 
+            // Account information
             data.append(
                 "username",
-                formData.username
+                formData.username.trim()
             );
 
             data.append(
                 "email",
-                formData.email
+                formData.email.trim()
             );
 
             data.append(
@@ -270,24 +280,23 @@ function SellerSignup() {
                 formData.phone
             );
 
+            // Seller information
             data.append(
                 "business_name",
-                formData.business_name
+                formData.business_name.trim()
             );
 
             data.append(
                 "pan_number",
-                formData.pan_number
+                formData.pan_number.trim()
             );
 
             data.append(
                 "business_address",
-                formData.business_address
+                formData.business_address.trim()
             );
 
-            /*
-             * Profile picture is optional.
-             */
+            // Optional profile picture
             if (formData.profile_picture) {
                 data.append(
                     "profile_picture",
@@ -295,49 +304,54 @@ function SellerSignup() {
                 );
             }
 
+            // Required business document
+            if (formData.business_document) {
+                data.append(
+                    "business_document",
+                    formData.business_document
+                );
+            }
+
             /*
-             * Business document is required.
+             * Do NOT manually set Content-Type here.
+             * Axios will automatically create the correct
+             * multipart/form-data boundary.
              */
-            data.append(
-                "business_document",
-                formData.business_document
-            );
-
-            await api.post(
-                "/register/seller/",
-                data
-            );
+            await api.post("users/register/seller/", data);
 
             /*
-             * Registration automatically authenticates
-             * the seller through the Django backend.
+             * Fetch the newly authenticated user's profile.
              */
             await fetchProfile();
 
+            /*
+             * Redirect after successful registration.
+             */
             navigate("/");
 
         } catch (err) {
             console.error(
                 "Seller registration failed:",
-                err
+                err.response?.data || err
             );
 
             const backendData =
                 err.response?.data;
 
             /*
-             * Convert Django errors into a readable
-             * message.
+             * Django normally returns:
+             *
+             * {
+             *     "username": ["Username already exists."]
+             * }
+             *
+             * or:
+             *
+             * {
+             *     "detail": "Something went wrong."
+             * }
              */
-            const message =
-                extractErrorMessage(
-                    backendData
-                );
 
-            /*
-             * If the error belongs to a specific field,
-             * show it under that field where possible.
-             */
             if (
                 backendData &&
                 typeof backendData === "object" &&
@@ -349,18 +363,30 @@ function SellerSignup() {
                 Object.entries(
                     backendData
                 ).forEach(([field, value]) => {
-                    fieldErrors[field] =
-                        Array.isArray(value)
-                            ? value[0]
-                            : value;
+                    if (Array.isArray(value)) {
+                        fieldErrors[field] = value[0];
+                    } else if (
+                        typeof value === "object" &&
+                        value !== null
+                    ) {
+                        fieldErrors[field] =
+                            JSON.stringify(value);
+                    } else {
+                        fieldErrors[field] =
+                            String(value);
+                    }
                 });
 
                 setErrors(fieldErrors);
             } else {
                 setErrors({
-                    general: message,
+                    general:
+                        extractErrorMessage(
+                            backendData
+                        ),
                 });
             }
+
         } finally {
             setLoading(false);
         }
@@ -368,7 +394,6 @@ function SellerSignup() {
 
     return (
         <AuthLayout>
-
             <div className="w-full max-w-2xl rounded-2xl bg-white p-8 shadow-lg">
 
                 {/* Heading */}
@@ -414,13 +439,11 @@ function SellerSignup() {
 
                             {/* Username */}
                             <div>
-
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                                     Username
                                 </label>
 
                                 <div className="relative">
-
                                     <User
                                         size={18}
                                         className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -432,31 +455,11 @@ function SellerSignup() {
                                         placeholder="Enter username"
                                         required
                                         autoComplete="username"
-                                        value={
-                                            formData.username
-                                        }
-                                        onChange={
-                                            handleChange
-                                        }
+                                        value={formData.username}
+                                        onChange={handleChange}
                                         disabled={loading}
-                                        className="
-                                            w-full
-                                            rounded-lg
-                                            border
-                                            border-gray-300
-                                            px-4
-                                            py-3
-                                            pl-10
-                                            text-sm
-                                            outline-none
-                                            transition
-                                            focus:border-green-500
-                                            focus:ring-2
-                                            focus:ring-green-200
-                                            disabled:bg-gray-100
-                                        "
+                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 pl-10 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200 disabled:bg-gray-100"
                                     />
-
                                 </div>
 
                                 {errors.username && (
@@ -464,18 +467,15 @@ function SellerSignup() {
                                         {errors.username}
                                     </p>
                                 )}
-
                             </div>
 
                             {/* Email */}
                             <div>
-
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                                     Email
                                 </label>
 
                                 <div className="relative">
-
                                     <Mail
                                         size={18}
                                         className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -487,31 +487,11 @@ function SellerSignup() {
                                         placeholder="Enter email"
                                         required
                                         autoComplete="email"
-                                        value={
-                                            formData.email
-                                        }
-                                        onChange={
-                                            handleChange
-                                        }
+                                        value={formData.email}
+                                        onChange={handleChange}
                                         disabled={loading}
-                                        className="
-                                            w-full
-                                            rounded-lg
-                                            border
-                                            border-gray-300
-                                            px-4
-                                            py-3
-                                            pl-10
-                                            text-sm
-                                            outline-none
-                                            transition
-                                            focus:border-green-500
-                                            focus:ring-2
-                                            focus:ring-green-200
-                                            disabled:bg-gray-100
-                                        "
+                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 pl-10 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200 disabled:bg-gray-100"
                                     />
-
                                 </div>
 
                                 {errors.email && (
@@ -519,18 +499,15 @@ function SellerSignup() {
                                         {errors.email}
                                     </p>
                                 )}
-
                             </div>
 
                             {/* Phone */}
                             <div>
-
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                                     Phone Number
                                 </label>
 
                                 <div className="relative">
-
                                     <Phone
                                         size={18}
                                         className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -543,31 +520,11 @@ function SellerSignup() {
                                         placeholder="98XXXXXXXX"
                                         maxLength={15}
                                         required
-                                        value={
-                                            formData.phone
-                                        }
-                                        onChange={
-                                            handleChange
-                                        }
+                                        value={formData.phone}
+                                        onChange={handleChange}
                                         disabled={loading}
-                                        className="
-                                            w-full
-                                            rounded-lg
-                                            border
-                                            border-gray-300
-                                            px-4
-                                            py-3
-                                            pl-10
-                                            text-sm
-                                            outline-none
-                                            transition
-                                            focus:border-green-500
-                                            focus:ring-2
-                                            focus:ring-green-200
-                                            disabled:bg-gray-100
-                                        "
+                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 pl-10 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200 disabled:bg-gray-100"
                                     />
-
                                 </div>
 
                                 {errors.phone && (
@@ -575,24 +532,18 @@ function SellerSignup() {
                                         {errors.phone}
                                     </p>
                                 )}
-
                             </div>
 
                             {/* Password */}
                             <div>
-
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                                     Password
                                 </label>
 
                                 <PasswordInput
                                     name="password"
-                                    value={
-                                        formData.password
-                                    }
-                                    onChange={
-                                        handleChange
-                                    }
+                                    value={formData.password}
+                                    onChange={handleChange}
                                     placeholder="Create a password"
                                     required
                                     autoComplete="new-password"
@@ -604,50 +555,41 @@ function SellerSignup() {
                                         {errors.password}
                                     </p>
                                 )}
-
                             </div>
 
                             {/* Confirm Password */}
                             <div>
-
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                                     Confirm Password
                                 </label>
 
                                 <PasswordInput
                                     name="confirmPassword"
-                                    value={
-                                        formData.confirmPassword
-                                    }
-                                    onChange={
-                                        handleChange
-                                    }
+                                    value={formData.confirmPassword}
+                                    onChange={handleChange}
                                     placeholder="Confirm your password"
                                     required
                                     autoComplete="new-password"
                                     disabled={loading}
                                 />
 
-                                {formData.confirmPassword &&
-                                    formData.password !==
-                                        formData.confirmPassword && (
-                                        <p className="mt-1 text-xs text-red-500">
-                                            Passwords do not match.
-                                        </p>
-                                    )}
+                                {errors.confirmPassword && (
+                                    <p className="mt-1 text-xs text-red-500">
+                                        {errors.confirmPassword}
+                                    </p>
+                                )}
 
                                 {formData.confirmPassword &&
+                                    !errors.confirmPassword &&
                                     formData.password ===
                                         formData.confirmPassword && (
                                         <p className="mt-1 text-xs text-green-600">
                                             Passwords match.
                                         </p>
                                     )}
-
                             </div>
 
                         </div>
-
                     </div>
 
                     {/* ========================= */}
@@ -664,13 +606,11 @@ function SellerSignup() {
 
                             {/* Business Name */}
                             <div>
-
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                                     Business Name
                                 </label>
 
                                 <div className="relative">
-
                                     <Store
                                         size={18}
                                         className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -685,28 +625,10 @@ function SellerSignup() {
                                         value={
                                             formData.business_name
                                         }
-                                        onChange={
-                                            handleChange
-                                        }
+                                        onChange={handleChange}
                                         disabled={loading}
-                                        className="
-                                            w-full
-                                            rounded-lg
-                                            border
-                                            border-gray-300
-                                            px-4
-                                            py-3
-                                            pl-10
-                                            text-sm
-                                            outline-none
-                                            transition
-                                            focus:border-green-500
-                                            focus:ring-2
-                                            focus:ring-green-200
-                                            disabled:bg-gray-100
-                                        "
+                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 pl-10 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200 disabled:bg-gray-100"
                                     />
-
                                 </div>
 
                                 {errors.business_name && (
@@ -714,18 +636,15 @@ function SellerSignup() {
                                         {errors.business_name}
                                     </p>
                                 )}
-
                             </div>
 
                             {/* PAN */}
                             <div>
-
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                                     PAN Number
                                 </label>
 
                                 <div className="relative">
-
                                     <CreditCard
                                         size={18}
                                         className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -741,28 +660,10 @@ function SellerSignup() {
                                         value={
                                             formData.pan_number
                                         }
-                                        onChange={
-                                            handleChange
-                                        }
+                                        onChange={handleChange}
                                         disabled={loading}
-                                        className="
-                                            w-full
-                                            rounded-lg
-                                            border
-                                            border-gray-300
-                                            px-4
-                                            py-3
-                                            pl-10
-                                            text-sm
-                                            outline-none
-                                            transition
-                                            focus:border-green-500
-                                            focus:ring-2
-                                            focus:ring-green-200
-                                            disabled:bg-gray-100
-                                        "
+                                        className="w-full rounded-lg border border-gray-300 px-4 py-3 pl-10 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200 disabled:bg-gray-100"
                                     />
-
                                 </div>
 
                                 {errors.pan_number && (
@@ -770,18 +671,15 @@ function SellerSignup() {
                                         {errors.pan_number}
                                     </p>
                                 )}
-
                             </div>
 
                             {/* Business Address */}
                             <div>
-
                                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                                     Business Address
                                 </label>
 
                                 <div className="relative">
-
                                     <MapPin
                                         size={18}
                                         className="absolute left-3 top-3 text-gray-400"
@@ -795,29 +693,10 @@ function SellerSignup() {
                                         value={
                                             formData.business_address
                                         }
-                                        onChange={
-                                            handleChange
-                                        }
+                                        onChange={handleChange}
                                         disabled={loading}
-                                        className="
-                                            w-full
-                                            resize-none
-                                            rounded-lg
-                                            border
-                                            border-gray-300
-                                            px-4
-                                            py-3
-                                            pl-10
-                                            text-sm
-                                            outline-none
-                                            transition
-                                            focus:border-green-500
-                                            focus:ring-2
-                                            focus:ring-green-200
-                                            disabled:bg-gray-100
-                                        "
+                                        className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 pl-10 text-sm outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200 disabled:bg-gray-100"
                                     />
-
                                 </div>
 
                                 {errors.business_address && (
@@ -825,15 +704,13 @@ function SellerSignup() {
                                         {errors.business_address}
                                     </p>
                                 )}
-
                             </div>
 
                         </div>
-
                     </div>
 
                     {/* ========================= */}
-                    {/* DOCUMENTS */}
+                    {/* VERIFICATION DOCUMENTS */}
                     {/* ========================= */}
 
                     <div className="border-t border-gray-100 pt-5">
@@ -846,24 +723,7 @@ function SellerSignup() {
 
                             {/* Profile Picture */}
                             <div>
-
-                                <label className="
-                                    flex
-                                    cursor-pointer
-                                    flex-col
-                                    items-center
-                                    justify-center
-                                    rounded-xl
-                                    border-2
-                                    border-dashed
-                                    border-gray-300
-                                    bg-gray-50
-                                    p-6
-                                    text-center
-                                    transition
-                                    hover:border-green-500
-                                    hover:bg-green-50
-                                ">
+                                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center transition hover:border-green-500 hover:bg-green-50">
 
                                     <ImageUp
                                         size={36}
@@ -884,9 +744,7 @@ function SellerSignup() {
                                         type="file"
                                         name="profile_picture"
                                         accept="image/*"
-                                        onChange={
-                                            handleChange
-                                        }
+                                        onChange={handleChange}
                                         disabled={loading}
                                         className="hidden"
                                     />
@@ -898,29 +756,11 @@ function SellerSignup() {
                                         {errors.profile_picture}
                                     </p>
                                 )}
-
                             </div>
 
                             {/* Business Document */}
                             <div>
-
-                                <label className="
-                                    flex
-                                    cursor-pointer
-                                    flex-col
-                                    items-center
-                                    justify-center
-                                    rounded-xl
-                                    border-2
-                                    border-dashed
-                                    border-gray-300
-                                    bg-gray-50
-                                    p-6
-                                    text-center
-                                    transition
-                                    hover:border-green-500
-                                    hover:bg-green-50
-                                ">
+                                <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-6 text-center transition hover:border-green-500 hover:bg-green-50">
 
                                     <FileText
                                         size={36}
@@ -942,9 +782,7 @@ function SellerSignup() {
                                         name="business_document"
                                         accept=".pdf,.jpg,.jpeg,.png"
                                         required
-                                        onChange={
-                                            handleChange
-                                        }
+                                        onChange={handleChange}
                                         disabled={loading}
                                         className="hidden"
                                     />
@@ -956,16 +794,13 @@ function SellerSignup() {
                                         {errors.business_document}
                                     </p>
                                 )}
-
                             </div>
 
                         </div>
-
                     </div>
 
-                    {/* Register */}
+                    {/* Register Button */}
                     <div className="pt-2">
-
                         <GreenButton
                             type="submit"
                             loading={loading}
@@ -973,38 +808,28 @@ function SellerSignup() {
                         >
                             Register Seller
                         </GreenButton>
-
                     </div>
 
                 </form>
 
                 {/* Login */}
                 <p className="mt-6 text-center text-sm text-gray-600">
-
                     Already have a seller account?{" "}
 
                     <button
                         type="button"
-                        onClick={() =>
-                            navigate("/login")
-                        }
+                        onClick={() => navigate("/login")}
                         disabled={loading}
-                        className="
-                            font-medium
-                            text-green-600
-                            hover:underline
-                            disabled:opacity-50
-                        "
+                        className="font-medium text-green-600 hover:underline disabled:opacity-50"
                     >
                         Login
                     </button>
-
                 </p>
 
             </div>
-
         </AuthLayout>
     );
 }
 
 export default SellerSignup;
+
